@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Title Drawer",
+  "version": "1.0",
+  "description": "Shows YouTube video title in a sleek side drawer",
+  "permissions": ["activeTab"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["styles.css"],
+      "js": ["content.js"]
+    }
+  ]
+} 
