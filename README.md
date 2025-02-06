@@ -83,6 +83,43 @@ graph TB
     WS -->|Queries| SE
 ```
 
+LYRICS UPDATE:
+flowchart TD
+    subgraph Backend_Layer [Backend Layer]
+        FastAPI[FastAPI Server]
+    end
+
+    subgraph AI_Layer [AI Layer]
+        CrewAI[CrewAI Orchestrator] -->|Delegates| SearchAgent[Search Agent]
+        CrewAI -->|Delegates| ExtractionAgent[Extraction Agent]
+        CrewAI -->|Delegates| ValidationAgent[Validation Agent]
+
+        SearchAgent -->|Uses| SearchTool[Search Tool]
+        ExtractionAgent -->|Uses| TrafilaturaTool[Trafilatura Tool]
+        ExtractionAgent -->|Uses| GPTTool[GPT-3.5 Tool]
+        ValidationAgent -->|Uses| ValidationTool[Validation Tool]
+    end
+
+    subgraph External_Layer [External Layer]
+        SearchEngine[Search Engine]
+        OpenAI[OpenAI GPT]
+    end
+
+    FastAPI -->|Tasks| CrewAI
+    SearchTool -->|Queries| SearchEngine
+    TrafilaturaTool -->|Prompts| WebScraping[Web Scraping]
+    GPTTool -->|Queries| OpenAI
+    WebScraping -->|Queries| SearchEngine
+
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef backend fill:#f5e6cc,stroke:#333,stroke-width:2px;
+    classDef ai fill:#f5e6cc,stroke:#333,stroke-width:2px;
+    classDef external fill:#f5e6cc,stroke:#333,stroke-width:2px;
+    class Backend_Layer,AI_Layer,External_Layer backend;
+    class FastAPI,CrewAI,SearchAgent,ExtractionAgent,ValidationAgent,SearchTool,TrafilaturaTool,GPTTool,ValidationTool ai;
+    class SearchEngine,OpenAI external;
+
+
 ### Component Architecture
 
 #### Frontend Components
