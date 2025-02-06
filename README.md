@@ -84,6 +84,7 @@ graph TB
 ```
 
 LYRICS UPDATE:
+```mermaid
 flowchart TD
     subgraph Backend_Layer [Backend Layer]
         FastAPI[FastAPI Server]
@@ -118,7 +119,7 @@ flowchart TD
     class Backend_Layer,AI_Layer,External_Layer backend;
     class FastAPI,CrewAI,SearchAgent,ExtractionAgent,ValidationAgent,SearchTool,TrafilaturaTool,GPTTool,ValidationTool ai;
     class SearchEngine,OpenAI external;
-
+```
 
 ### Component Architecture
 
