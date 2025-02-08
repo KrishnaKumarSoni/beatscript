@@ -1,9 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Title Drawer",
+  "name": "BeatScript",
   "version": "1.0",
-  "description": "Shows YouTube video title in a sleek side drawer",
-  "permissions": ["activeTab"],
+  "description": "Extract song information and lyrics from YouTube videos",
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://localhost:8000/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -16,7 +22,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["*://*.youtube.com/*"],
       "css": ["styles.css"],
       "js": ["content.js"]
     }

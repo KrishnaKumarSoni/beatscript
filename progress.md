@@ -2,7 +2,199 @@
 ![BeatScript Logo](beatscriptlogo.png)
 
 ## Project Overview
-BeatScript is a Chrome extension that automatically detects and extracts song information from YouTube videos. It uses advanced AI and web scraping techniques to identify songs and provide accurate metadata.
+BeatScript is a Chrome extension that automatically detects and extracts song information from YouTube videos, providing lyrics and metadata through an intelligent backend system.
+
+## Core Features
+
+### Frontend (Chrome Extension)
+- ✅ Automatic video title detection
+- ✅ Resizable drawer interface
+- ✅ Zoom controls for lyrics
+- ✅ Settings menu with auto-open/close options
+- ✅ Responsive and modern UI
+- ✅ State persistence across page navigations
+
+### Backend (FastAPI)
+- ✅ Intelligent title cleaning with GPT-3.5
+- ✅ Multi-source lyrics fetching
+- ✅ Smart lyrics cleaning and formatting
+- ✅ Language detection and selection
+- ✅ Fallback mechanisms for reliability
+
+## Technical Architecture
+
+### Frontend Components
+```javascript
+// Core Components
+- content.js (Main extension logic)
+- background.js (Service worker)
+- manifest.json (Extension config)
+- styles.css (UI styling)
+```
+
+### Backend Components
+```python
+# Core Services
+- main.py (FastAPI server)
+- genius_api.py (Genius integration)
+- lyrics_scraper.py (Multi-source scraping)
+- lyrics_cleaner.py (Content cleaning)
+- gpt_validator.py (GPT integration)
+```
+
+## Implementation Details
+
+### Intelligent Title Processing
+- GPT-3.5 integration for context-aware title cleaning
+- Fallback to regex-based cleaning
+- Artist and song name extraction
+- Language-specific character preservation
+
+### Lyrics Extraction Pipeline
+1. Genius API (Primary source)
+2. Known lyrics sites scraping
+3. General web search fallback
+4. GPT-3.5 powered cleaning
+
+### Smart Content Cleaning
+- Multiple language version handling
+- Metadata removal
+- Structure preservation
+- Format standardization
+
+### Error Handling
+- Graceful degradation
+- Multiple fallback mechanisms
+- Comprehensive logging
+- User-friendly error messages
+
+## Current Status
+
+### Completed Features
+- ✅ Basic extension structure
+- ✅ Drawer UI implementation
+- ✅ Backend API setup
+- ✅ Lyrics fetching system
+- ✅ GPT integration
+- ✅ Multi-source scraping
+- ✅ Content cleaning
+- ✅ Error handling
+
+### In Progress
+- 🔄 Caching system
+- 🔄 Rate limiting
+- 🔄 Performance optimization
+- 🔄 Additional lyrics sources
+
+### Planned Features
+- ⏳ User preferences
+- ⏳ Offline mode
+- ⏳ History tracking
+- ⏳ Playlist support
+
+## Technical Stack
+
+### Frontend
+- JavaScript (ES6+)
+- Chrome Extension APIs
+- Modern CSS3
+
+### Backend
+- Python 3.8+
+- FastAPI
+- GPT-3.5
+- BeautifulSoup4
+- httpx
+
+### External Services
+- OpenAI GPT-3.5
+- Genius API
+- Various lyrics sources
+
+## API Endpoints
+
+### GET/POST /api/search
+```python
+Parameters:
+- title: str (required)
+- preferred_language: str (optional, default="en")
+
+Response:
+{
+    "song": str,
+    "artist": str,
+    "type": str,  # "lyrical", "instrumental", or "error"
+    "lyrics": Optional[str],
+    "error": Optional[str]
+}
+```
+
+## Development Guidelines
+
+### Code Structure
+- Modular components
+- Clear separation of concerns
+- Comprehensive error handling
+- Fallback mechanisms
+
+### Best Practices
+- Clean code principles
+- Async operations
+- Rate limiting
+- User privacy
+
+## Setup Instructions
+
+### Prerequisites
+```bash
+# Required
+- Python 3.8+
+- Chrome browser
+- Node.js 14+
+
+# API Keys
+- GENIUS_ACCESS_TOKEN
+- OPENAI_API_KEY
+```
+
+### Installation
+```bash
+# Backend
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Start server
+uvicorn main:app --reload
+
+# Frontend
+# Load unpacked extension in Chrome
+```
+
+## Recent Updates
+
+### Backend Improvements
+- Added GPT-3.5 integration for title cleaning
+- Enhanced lyrics cleaning with language detection
+- Improved error handling and logging
+- Added multi-source fallback system
+
+### Frontend Enhancements
+- Implemented zoom controls
+- Added settings persistence
+- Improved drawer resizing
+- Enhanced error display
+
+## Next Steps
+1. Implement caching system
+2. Add rate limiting
+3. Optimize performance
+4. Add more lyrics sources
+5. Enhance error recovery
+
+---
+Last Updated: 2024-02-07
 
 ## Current State
 The project is currently in development with core functionality implemented. The system can:
@@ -25,7 +217,15 @@ graph TB
     
     subgraph "Backend Server"
         API[FastAPI Server]
-        AI[AI Processing]
+        
+        subgraph "CrewAI System"
+            CAI[CrewAI Orchestrator]
+            SA[Search Agent]
+            EA[Extraction Agent]
+            ST[Search Tool]
+            AT[Analysis Tool]
+        end
+        
         WS[Web Scraping]
     end
     
@@ -37,10 +237,23 @@ graph TB
     CE -->|Events| BG
     BG -->|API Calls| API
     CE -->|UI Updates| UI
-    API -->|Queries| AI
-    AI -->|Requests| OAI
-    AI -->|Search| WS
+    
+    API -->|Tasks| CAI
+    CAI -->|Delegates| SA
+    CAI -->|Delegates| EA
+    
+    SA -->|Uses| ST
+    EA -->|Uses| AT
+    
+    ST -->|Queries| WS
+    AT -->|Prompts| OAI
     WS -->|Queries| SE
+    
+    style CAI fill:#f9f,stroke:#333,stroke-width:2px
+    style SA fill:#bbf,stroke:#333
+    style EA fill:#bbf,stroke:#333
+    style ST fill:#dfd,stroke:#333
+    style AT fill:#dfd,stroke:#333
 ```
 
 ### Component Details
@@ -303,4 +516,192 @@ BeatScript represents a sophisticated approach to music information extraction f
 
 ---
 *Last Updated: [Current Date]*
-*Version: 1.0.0* 
+*Version: 1.0.0*
+
+# Project Progress
+
+## Backend Development
+
+### 2024-02-06
+- ✅ Initialized FastAPI backend with CORS support
+- ✅ Implemented comprehensive YouTube title cleaning with regex patterns
+- ✅ Created async search functionality with DuckDuckGo
+- ✅ Added multi-site search with Genius.com as primary and others as fallback
+- ✅ Implemented URL accessibility checking to ensure valid results
+- ✅ Set up concurrent search for backup sites to improve speed
+
+### 2024-02-07
+- ✅ Added direct URL construction for faster lyrics lookup
+- ✅ Improved title cleaning with better regex patterns
+- ✅ Added instrumental track detection
+- ✅ Enhanced error handling and response types
+- ✅ Added rotating User-Agents for better request success
+- ✅ Implemented retry mechanism for URL accessibility checks
+- ✅ Added support for both query parameters and request body
+- ✅ Improved artist/song name extraction
+- ✅ Added comprehensive logging for debugging
+- ✅ Ensured full API compatibility with frontend expectations
+- ✅ Implemented multi-site lyrics scraping with fallbacks
+- ✅ Added format-preserving lyrics extraction
+- ✅ Implemented site-specific scraping strategies
+- ✅ Added graceful error handling for scraping failures
+- ✅ Enhanced response with actual lyrics content
+
+### Current Focus
+- 🔄 Adding caching system for frequently requested songs
+- 🔄 Adding rate limiting for production use
+- 🔄 Implementing proxy support for better reliability
+- 🔄 Adding more lyrics sources and fallbacks
+
+### Technical Improvements
+- Added BeautifulSoup4 and lxml for robust HTML parsing
+- Implemented async HTTP clients for better performance
+- Added retry mechanisms for failed requests
+- Enhanced error handling and logging
+- Improved response format with actual lyrics content
+
+### Next Steps
+1. Implement Redis caching for frequently requested songs
+2. Add rate limiting to prevent abuse
+3. Implement proxy rotation for better reliability
+4. Add more lyrics sources
+5. Enhance error recovery mechanisms
+
+## Frontend Development
+
+### 2024-02-06
+- ✅ Implemented initial UI layout and structure
+- ✅ Added basic video detection functionality
+- ✅ Implemented error handling for video detection
+- ✅ Added state persistence across page navigations
+
+### 2024-02-07
+- ✅ Implemented song extraction functionality
+- ✅ Added real-time UI updates
+- ✅ Implemented responsive drawer interface
+- ✅ Added error handling for song extraction
+- ✅ Added state persistence for song extraction
+
+### Current Focus
+- 🔄 Implementing lyrics scraping functionality
+- 🔄 Adding caching system for frequently requested songs
+- 🔄 Enhancing search accuracy with better patterns
+- 🔄 Adding rate limiting for production use
+
+### Technical Improvements
+- Added BeautifulSoup4 and lxml for robust HTML parsing
+- Implemented async HTTP clients for better performance
+- Added retry mechanisms for failed requests
+- Enhanced error handling and logging
+- Improved response format with actual lyrics content
+
+### Next Steps
+1. Implement Redis caching for frequently requested songs
+2. Add rate limiting to prevent abuse
+3. Implement proxy rotation for better reliability
+4. Add more lyrics sources
+5. Enhance error recovery mechanisms
+
+## AI Development
+
+### 2024-02-06
+- ✅ Implemented initial AI system setup
+- ✅ Added basic video title detection functionality
+- ✅ Implemented error handling for video title detection
+- ✅ Added state persistence across page navigations
+
+### 2024-02-07
+- ✅ Added song extraction functionality
+- ✅ Added real-time UI updates
+- ✅ Implemented responsive drawer interface
+- ✅ Added error handling for song extraction
+- ✅ Added state persistence for song extraction
+
+### Current Focus
+- 🔄 Implementing lyrics scraping functionality
+- 🔄 Adding caching system for frequently requested songs
+- 🔄 Enhancing search accuracy with better patterns
+- 🔄 Adding rate limiting for production use
+
+### Technical Improvements
+- Added BeautifulSoup4 and lxml for robust HTML parsing
+- Implemented async HTTP clients for better performance
+- Added retry mechanisms for failed requests
+- Enhanced error handling and logging
+- Improved response format with actual lyrics content
+
+### Next Steps
+1. Implement Redis caching for frequently requested songs
+2. Add rate limiting to prevent abuse
+3. Implement proxy rotation for better reliability
+4. Add more lyrics sources
+5. Enhance error recovery mechanisms
+
+## Web Scraping Development
+
+### 2024-02-06
+- ✅ Implemented initial web scraping setup
+- ✅ Added basic DuckDuckGo search functionality
+- ✅ Implemented error handling for DuckDuckGo search
+- ✅ Added state persistence across page navigations
+
+### 2024-02-07
+- ✅ Added multi-site search functionality
+- ✅ Implemented Genius.com as primary and others as fallback
+- ✅ Implemented URL accessibility checking
+- ✅ Set up concurrent search for backup sites
+- ✅ Added state persistence for multi-site search
+
+### Current Focus
+- 🔄 Implementing lyrics scraping functionality
+- 🔄 Adding caching system for frequently requested songs
+- 🔄 Enhancing search accuracy with better patterns
+- 🔄 Adding rate limiting for production use
+
+### Technical Improvements
+- Added BeautifulSoup4 and lxml for robust HTML parsing
+- Implemented async HTTP clients for better performance
+- Added retry mechanisms for failed requests
+- Enhanced error handling and logging
+- Improved response format with actual lyrics content
+
+### Next Steps
+1. Implement Redis caching for frequently requested songs
+2. Add rate limiting to prevent abuse
+3. Implement proxy rotation for better reliability
+4. Add more lyrics sources
+5. Enhance error recovery mechanisms
+
+## State Management Development
+
+### 2024-02-06
+- ✅ Implemented initial state management setup
+- ✅ Added basic video detection state
+- ✅ Implemented error handling for video detection state
+- ✅ Added state persistence across page navigations
+
+### 2024-02-07
+- ✅ Added song extraction state
+- ✅ Added real-time UI updates for state
+- ✅ Implemented error handling for song extraction state
+- ✅ Added state persistence for song extraction state
+
+### Current Focus
+- 🔄 Implementing lyrics scraping state
+- 🔄 Adding caching system for frequently requested songs state
+- 🔄 Enhancing search accuracy state
+- 🔄 Adding rate limiting state
+
+### Technical Improvements
+- Added BeautifulSoup4 and lxml for robust HTML parsing
+- Implemented async HTTP clients for better performance
+- Added retry mechanisms for failed requests
+- Enhanced error handling and logging
+- Improved response format with actual lyrics content
+
+### Next Steps
+1. Implement Redis caching for frequently requested songs state
+2. Add rate limiting to prevent abuse state
+3. Implement proxy rotation for better reliability state
+4. Add more lyrics sources state
+5. Enhance error recovery mechanisms state 
