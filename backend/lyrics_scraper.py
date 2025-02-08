@@ -186,27 +186,8 @@ class LyricsScraper:
             for br in lyrics_container.find_all('br'):
                 br.replace_with('\n')
             
-            # Convert <p> and similar tags to newlines
-            for tag in lyrics_container.find_all(['p', 'div', 'section']):
-                if tag.name in ['p', 'div', 'section']:
-                    tag.insert_before(soup.new_string('\n'))
-                    tag.insert_after(soup.new_string('\n'))
-            
-            # Get text while preserving formatting
-            lyrics = []
-            for elem in lyrics_container.stripped_strings:
-                if not any(skip in elem.lower() for skip in ['embed', 'copyright', 'lyrics licensed']):
-                    lyrics.append(elem)
-            
-            text = '\n'.join(lyrics)
-            
-            # Clean up extra newlines and spaces
-            text = re.sub(r'\n{3,}', '\n\n', text)
-            text = re.sub(r'[ \t]+', ' ', text)
-            
-            # Remove common annotations
-            text = re.sub(r'\[[^\]]+\]', '', text)
-            text = re.sub(r'\([^)]+\)', '', text)
+            # Get text while preserving all formatting
+            text = lyrics_container.get_text('\n')
             
             return text.strip()
         

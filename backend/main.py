@@ -269,17 +269,28 @@ async def search_lyrics_site(
 def is_likely_instrumental(title: str) -> bool:
     """Check if the song is likely instrumental"""
     instrumental_indicators = [
-        "instrumental",
-        "karaoke",
-        "backing track",
-        "no vocals",
-        "music only",
-        "beat",
-        "bgm",
-        "background music",
+        r"\binstrumental\b",
+        r"\bkaraoke\b",
+        r"\bbacking track\b",
+        r"\bno vocals\b",
+        r"\bmusic only\b",
+        r"\bbeat\s*instrumental\b",  # Only match "beat instrumental", not just "beat"
+        r"\bbgm\b",
+        r"\bbackground music\b",
+        r"\bno lyrics\b",
+        r"\bw/o vocals\b",
+        r"\bwithout vocals\b"
     ]
+    
+    # Convert to lowercase for case-insensitive matching
     title_lower = title.lower()
-    return any(indicator in title_lower for indicator in instrumental_indicators)
+    
+    # Ignore if contains common producer/artist indicators
+    if any(x in title_lower for x in ["prod.", "prod by", "produced by", "x", "feat.", "ft."]):
+        return False
+        
+    # Check for exact matches of instrumental indicators
+    return any(re.search(pattern, title_lower) for pattern in instrumental_indicators)
 
 
 async def search_general_lyrics(title: str, client: httpx.AsyncClient) -> Optional[Tuple[str, str]]:
@@ -382,7 +393,7 @@ async def search_general_lyrics(title: str, client: httpx.AsyncClient) -> Option
                         except Exception as e:
                             print(f"Error processing URL {url}: {str(e)}")
                             continue
-        
+                    
             await asyncio.sleep(random.uniform(1, 2))
         
     except Exception as e:
@@ -493,57 +504,13 @@ Return ONLY the cleaned lyrics, no extra text."""
     return cleaned_lyrics  # Return the basic cleaned version if GPT fails
 
 
-async def clean_title_with_gpt(title: str) -> str:
-    """Use GPT to intelligently clean and extract song information from title"""
-    try:
-        prompt = f"""Analyze this YouTube video title and extract the actual song title and artist:
-Title: {title}
-Rules:
-1. Remove common YouTube title extras (Official Video, Lyric Video, etc.)
-2. Identify the main artist and song name
-3. Format as 'Artist - Song Title'
-4. Keep language-specific characters intact
-5. Preserve featuring artists if important
-
-Return ONLY the cleaned title, nothing else."""
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-3.5-turbo",
-                    "messages": [
-                        {"role": "system", "content": "You are a music title cleaning assistant. Extract and format song titles accurately."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.3,
-                    "max_tokens": 1000
-                },
-                timeout=10.0
-            )
-            
-            if response.status_code == 200:
-                cleaned = response.json()['choices'][0]['message']['content'].strip()
-                logger.info(f"GPT cleaned title: {cleaned}")
-                return cleaned
-            
-    except Exception as e:
-        logger.error(f"Error in GPT title cleaning: {str(e)}")
-    
-    # Fallback to regex cleaning if GPT fails
-    return clean_title(title)
-
-
 @app.get("/api/search")
 @app.post("/api/search")
 async def search_song(
     title_query: Optional[str] = Query(None, alias="title"),
     search_body: Optional[SearchRequest] = None,
-    preferred_language: str = Query("en", description="Preferred lyrics language (en, hi, etc.)")
+    preferred_language: str = Query("en", description="Preferred lyrics language (en, hi, etc.)"),
+    channel: Optional[str] = Query(None, description="Channel name for additional context")
 ):
     try:
         title = title_query or (search_body.title if search_body else None)
@@ -554,9 +521,22 @@ async def search_song(
                 detail="Title is required either as query parameter or in request body",
             )
 
-        # Use GPT for smarter title cleaning
-        cleaned_title = await clean_title_with_gpt(title)
+        # Append channel name to title if provided
+        if channel:
+            title = f"{title} by {channel}"
+            logger.info(f"Title with channel: {title}")
+
+        # Use simple regex cleaning instead of GPT
+        cleaned_title = clean_title(title)
         print(f"Processing title: {title} -> {cleaned_title}")
+
+        # Check if likely instrumental
+        if is_likely_instrumental(cleaned_title):
+            return SongResponse(
+                song=cleaned_title,
+                artist="Unknown",
+                type="instrumental",
+            )
 
         if len(cleaned_title) < 3:
             return SongResponse(
@@ -566,26 +546,14 @@ async def search_song(
                 error="Title too short after cleaning",
             )
 
-        # Check if instrumental before proceeding
-        if is_likely_instrumental(title):
-            return SongResponse(
-                song=cleaned_title,
-                artist="Unknown",
-                type="instrumental",
-                lyrics=None,
-                error=None,
-            )
-
         # First try Genius API
-        lyrics = await genius_api.search_lyrics(cleaned_title, "")
-        if lyrics:
-            # Get song and artist from Genius API response
-            song_info = await genius_api.get_song_info(cleaned_title)
+        result = await genius_api.search_lyrics(cleaned_title, "")
+        if result:
             return SongResponse(
-                song=song_info.get("song", cleaned_title),
-                artist=song_info.get("artist", "Unknown"),
+                song=result.get("song", cleaned_title),
+                artist=result.get("artist", "Unknown"),
                 type="lyrical",
-                lyrics=lyrics,
+                lyrics=result.get("lyrics", ""),
             )
 
         # Only try other sources if Genius API didn't find lyrics
@@ -611,7 +579,7 @@ async def search_song(
                 except Exception as e:
                     logger.error(f"Error with lyrics site {site_info[0]}: {str(e)}")
                     continue
-
+                    
             # Only try general web search if no lyrics found from known sites
             logger.info("Trying general web search for lyrics...")
             try:

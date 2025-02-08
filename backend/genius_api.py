@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 import lyricsgenius
 from difflib import SequenceMatcher
 from dotenv import load_dotenv
@@ -8,6 +8,7 @@ from lyrics_cleaner import LyricsCleaner
 import httpx
 from bs4 import BeautifulSoup
 import re
+import json
 from urllib.parse import urlparse, parse_qs
 
 # Load environment variables
@@ -20,7 +21,11 @@ logger = logging.getLogger(__name__)
 class GeniusAPI:
     def __init__(self):
         self.access_token = os.getenv('GENIUS_ACCESS_TOKEN')
+        self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.lyrics_cleaner = LyricsCleaner()
+        
+        if not self.openai_api_key:
+            logger.warning("No OpenAI API key found, GPT-4O processing will be skipped")
         
         if self.access_token:
             # Initialize with API token if available
@@ -29,11 +34,10 @@ class GeniusAPI:
                 timeout=15,
                 sleep_time=0.5,
                 retries=3,
-                verbose=False,
-                remove_section_headers=False,  # Keep structure
-                skip_non_songs=True  # Skip non-songs
+                verbose=True,
+                remove_section_headers=False,
+                skip_non_songs=True
             )
-            # Configure excluded terms
             self.genius.excluded_terms = [
                 "(Remix)", "(Live)", "(Cover)",
                 "Karaoke", "Instrumental", "Extended",
@@ -44,6 +48,68 @@ class GeniusAPI:
             self.genius = None
             logger.warning("No Genius API token found")
     
+    async def _extract_lyrics_from_html(self, html: str) -> Optional[str]:
+        """Extract lyrics from Genius HTML content"""
+        try:
+            logger.info("=== GENIUS SCRAPING DEBUG ===")
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Try different selectors in order of preference
+            selectors = [
+                ("div", {"data-lyrics-container": "true"}),  # New Genius format
+                ("div", {"class_": "lyrics"}),  # Old Genius format
+                ("div", {"class_": "Lyrics__Container"}),  # Alternative format
+            ]
+            
+            lyrics_parts = []
+            for tag, attrs in selectors:
+                containers = soup.find_all(tag, attrs)
+                if containers:
+                    logger.info(f"Found {len(containers)} containers with {tag} {attrs}")
+                    for container in containers:
+                        # Remove script and button elements
+                        for unwanted in container.find_all(['script', 'button']):
+                            unwanted.decompose()
+                        
+                        # Get text while preserving line breaks
+                        text = container.get_text('\n').strip()
+                        if text:
+                            lyrics_parts.append(text)
+            
+            if lyrics_parts:
+                lyrics = '\n\n'.join(lyrics_parts)
+                logger.info(f"Extracted lyrics length: {len(lyrics)}")
+                logger.info("=== END GENIUS SCRAPING DEBUG ===")
+                return lyrics
+            
+            logger.warning("No lyrics found in HTML")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error extracting lyrics from HTML: {str(e)}")
+            return None
+    
+    async def _fetch_lyrics_from_url(self, url: str) -> Optional[str]:
+        """Fetch and extract lyrics from a Genius URL"""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    url,
+                    headers={'User-Agent': 'Mozilla/5.0'},
+                    follow_redirects=True,
+                    timeout=10.0
+                )
+                
+                if response.status_code == 200:
+                    return await self._extract_lyrics_from_html(response.text)
+                
+                logger.error(f"Failed to fetch URL {url}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error fetching lyrics URL: {str(e)}")
+            return None
+
     def _string_similarity(self, str1: str, str2: str) -> float:
         """Calculate string similarity ratio"""
         # Clean strings for comparison
@@ -61,94 +127,256 @@ class GeniusAPI:
         title_clean = re.sub(r'[^\w\s]', '', song.title.lower().strip())
         artist_clean = re.sub(r'[^\w\s]', '', song.artist.lower().strip())
         
-        # Calculate title similarity
-        similarity = self._string_similarity(search_clean, title_clean)
-        logger.info(f"Title similarity: {similarity} (search: {search_clean}, found: {title_clean})")
+        logger.info(f"Comparing search='{search_clean}' with title='{title_clean}' by artist='{artist_clean}'")
         
-        # Extract potential artist name from search
-        artist_name = None
-        if " - " in search_title:
-            parts = search_title.split(" - ")
-            artist_name = re.sub(r'[^\w\s]', '', parts[0].lower().strip())
-            logger.info(f"Extracted artist name: {artist_name}")
+        # Extract main components from search title
+        main_parts = search_clean.split('-', 1)
+        if len(main_parts) == 2:
+            search_artist = main_parts[0].strip()
+            search_rest = main_parts[1].strip()
             
-            # Calculate artist similarity if we have an artist name
-            if artist_name:
-                artist_similarity = self._string_similarity(artist_name, artist_clean)
-                logger.info(f"Artist similarity: {artist_similarity}")
-                
-                # If we have a good artist match and decent title match, accept it
-                if artist_similarity > 0.7 and similarity > 0.5:
-                    logger.info("Accepted based on good artist match and decent title match")
-                    return True
+            # Handle featured artists in search
+            if any(feat in search_rest for feat in ['feat', 'ft', 'featuring']):
+                for feat in ['feat', 'ft', 'featuring']:
+                    if feat in search_rest:
+                        song_parts = search_rest.split(feat, 1)
+                        search_song = song_parts[0].strip()
+                        search_featured = song_parts[1].strip()
+                        
+                        # Calculate similarities
+                        song_similarity = self._string_similarity(search_song, title_clean)
+                        artist_similarity = self._string_similarity(search_artist, artist_clean)
+                        featured_in_result = any(
+                            self._string_similarity(search_featured, part) > 0.6 
+                            for part in artist_clean.split()
+                        )
+                        
+                        logger.info(f"Featured artist song - Song similarity: {song_similarity}, Artist similarity: {artist_similarity}")
+                        logger.info(f"Featured artist found in result: {featured_in_result}")
+                        
+                        # Accept if we have good matches
+                        if song_similarity > 0.6 and (artist_similarity > 0.6 or featured_in_result):
+                            logger.info("Accepted based on featured artist match")
+                            return True
+                        break
         
-        # Accept if title similarity is very high
-        if similarity > 0.8:
+        # Calculate overall title similarity
+        similarity = self._string_similarity(search_clean, title_clean)
+        logger.info(f"Overall title similarity: {similarity}")
+        
+        # Accept if title similarity is high enough
+        if similarity > 0.7:
             logger.info("Accepted based on high title similarity")
             return True
         
-        # Accept if search terms are found in title
+        # Accept if search terms are found in title and artist
         search_terms = set(search_clean.split())
-        title_terms = set(title_clean.split())
-        common_terms = search_terms.intersection(title_terms)
+        result_terms = set(title_clean.split() + artist_clean.split())
+        common_terms = search_terms.intersection(result_terms)
         if len(common_terms) >= min(2, len(search_terms)):
-            logger.info("Accepted based on common terms")
+            logger.info(f"Accepted based on common terms: {common_terms}")
             return True
-        
-        # If we have artist name and it's a good match, be more lenient with title
-        if artist_name and self._string_similarity(artist_name, artist_clean) > 0.7:
-            remaining_search = search_clean.replace(artist_name, '').strip()
-            if self._string_similarity(remaining_search, title_clean) > 0.6:
-                logger.info("Accepted based on artist match and partial title match")
-                return True
-        
-        logger.info("Song validation failed")
+            
+        logger.info("No match found")
         return False
     
-    async def search_lyrics(self, title: str, _: str = "") -> Optional[str]:
+    async def _process_with_gpt4o(self, text: str, youtube_title: str = "") -> Tuple[bool, Optional[Dict[str, Any]]]:
+        """Process text with GPT-4 to validate and clean lyrics, and extract song/artist info"""
+        if not self.openai_api_key or not text:
+            logger.warning("No OpenAI API key or empty text, skipping GPT processing")
+            return True, {"lyrics": text}
+
+        try:
+            # Pre-validate text before sending to GPT
+            if len(text.strip().split('\n')) < 3:  # Too few lines
+                logger.warning("Text too short to be lyrics")
+                return False, None
+
+            # Log the text being processed
+            logger.info(f"Processing text length: {len(text)}")
+            logger.info(f"First few lines: {text.split('\\n')[:3]}")
+
+            system_prompt = {
+                "role": "system",
+                "content": """You are a lyrics validation and cleaning expert. Your task is to analyze text and return ONLY a JSON response in the following format:
+{
+    "is_lyrics": boolean,
+    "cleaned_lyrics": string or null,
+    "language": string,
+    "structure": array of strings,
+    "song_name": string,
+    "artist_name": string
+}
+
+Guidelines for lyrics validation:
+- Text should have multiple lines
+- Should have a song-like structure
+- May contain section markers like [Verse], [Chorus], etc.
+- May be in any language
+- Should not be just a list of songs or article text
+
+Guidelines for cleaning:
+- Remove advertising and metadata
+- Keep section headers in [brackets]
+- Preserve original line breaks and structure
+- Keep language-specific characters and formatting
+
+Guidelines for song/artist extraction:
+- Extract song name and artist from the YouTube title if provided
+- Remove common YouTube title elements (Official Video, Lyric Video, etc.)
+- Handle featuring artists appropriately
+- If no YouTube title, try to infer from lyrics content
+
+Remember to ONLY return the JSON object, no other text."""
+            }
+
+            # Take more text for analysis but limit to avoid token limits
+            text_for_analysis = text[:4000] if len(text) > 4000 else text
+            
+            user_prompt = {
+                "role": "user",
+                "content": f"Analyze and clean this text (return ONLY JSON).\n\nYouTube Title: {youtube_title}\n\nLyrics Text:\n{text_for_analysis}"
+            }
+
+            logger.info("Sending request to GPT-4")
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.openai_api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "gpt-4o",
+                        "messages": [system_prompt, user_prompt],
+                        "temperature": 0.3
+                    },
+                    timeout=30.0
+                )
+
+                logger.info(f"GPT-4 response status: {response.status_code}")
+                if response.status_code == 200:
+                    result = response.json()['choices'][0]['message']['content']
+                    logger.info(f"GPT-4 raw response: {result[:200]}...")  # Log first 200 chars
+                    
+                    try:
+                        # Clean the response string to ensure it's valid JSON
+                        result = result.strip()
+                        if result.startswith('```json'):  # Remove markdown if present
+                            result = result.split('```json')[1].split('```')[0].strip()
+                        elif result.startswith('```'):
+                            result = result.split('```')[1].strip()
+                            
+                        parsed = json.loads(result)
+                        
+                        # More lenient validation
+                        if parsed.get('is_lyrics', False):
+                            cleaned = parsed.get('cleaned_lyrics')
+                            if cleaned and len(cleaned.strip()) > 0:
+                                logger.info(f"GPT-4 cleaned lyrics. Language: {parsed.get('language')}")
+                                logger.info(f"Structure: {', '.join(parsed.get('structure', []))}")
+                                return True, {
+                                    'lyrics': cleaned,
+                                    'song': parsed.get('song_name', 'Unknown'),
+                                    'artist': parsed.get('artist_name', 'Unknown'),
+                                    'language': parsed.get('language', 'unknown')
+                                }
+                            
+                        # If GPT-4 says it's not lyrics, do a final check
+                        if text and len(text.strip().split('\n')) > 5:  # If it has enough lines
+                            logger.info("GPT-4 rejected but text looks like lyrics, using original")
+                            return True, {'lyrics': text}
+                            
+                        logger.warning("Content determined not to be lyrics")
+                        return False, None
+                        
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse GPT-4 response: {str(e)}")
+                        if text:  # Fallback to original if we can't parse GPT response
+                            return True, {'lyrics': text}
+                        return False, None
+                else:
+                    logger.error(f"GPT-4 API error: {response.status_code}")
+                    logger.error(f"Error response: {response.text}")
+                    # Fallback to original text on API error
+                    return True, {'lyrics': text}
+
+            logger.warning("GPT-4 processing failed, checking original text")
+            # Final fallback - if text looks like lyrics, use it
+            if text and len(text.strip().split('\n')) > 5:
+                return True, {'lyrics': text}
+            return False, None
+
+        except Exception as e:
+            logger.error(f"Error in GPT-4 processing: {str(e)}")
+            if text:  # Fallback to original text if there's any error
+                return True, {'lyrics': text}
+            return False, None
+
+    async def search_lyrics(self, title: str, _: str = "") -> Optional[Dict[str, Any]]:
         """Search for lyrics using LyricsGenius with fallback to custom scraping"""
         if not self.genius:
             logger.error("Genius API not initialized")
             return None
             
         try:
-            # Track if we've found lyrics to avoid multiple returns
-            found_lyrics = None
+            logger.info(f"Original title: {title}")
             
-            # First try: Direct song search with LyricsGenius
-            song = self.genius.search_song(title)
+            # Clean title once for all searches
+            clean_title = re.sub(r'\s*\([^)]*\)', '', title)
+            clean_title = re.sub(r'\s*\[[^\]]*\]', '', clean_title)
+            clean_title = re.sub(r'\s*\|.*$', '', clean_title)
+            clean_title = clean_title.strip()
+            
+            # 1. Try direct Genius search
+            logger.info(f"Trying LyricsGenius search with: {clean_title}")
+            song = self.genius.search_song(clean_title)
+            
             if song and self._validate_song_match(title, song):
-                logger.info("Found lyrics through direct song search")
-                return self.lyrics_cleaner.clean(song.lyrics)
+                logger.info(f"Found song match: {song.title} by {song.artist}")
+                
+                # Fetch lyrics from song URL
+                lyrics = await self._fetch_lyrics_from_url(song.url)
+                if lyrics:
+                    # First clean with basic cleaner
+                    cleaned = self.lyrics_cleaner.clean(lyrics)
+                    # Then process with GPT-4O
+                    is_lyrics, result = await self._process_with_gpt4o(cleaned, title)
+                    
+                    if not is_lyrics:
+                        logger.warning("GPT-4O determined content is not valid lyrics")
+                        return None
+                        
+                    if result:
+                        return {
+                            'lyrics': result.get('lyrics', ''),
+                            'song': result.get('song', song.title),
+                            'artist': result.get('artist', song.artist),
+                            'language': result.get('language', 'unknown')
+                        }
             
-            # Second try: Search by title components if first try failed
-            if not found_lyrics and " - " in title:
-                artist, song_title = title.split(" - ", 1)
-                logger.info(f"Trying search with artist: {artist}, title: {song_title}")
-                song = self.genius.search_song(song_title, artist)
-                if song and self._validate_song_match(title, song):
-                    logger.info("Found lyrics through artist-title search")
-                    return self.lyrics_cleaner.clean(song.lyrics)
+            # 2. If no results or no match, try custom scraping
+            logger.info("No Genius results found, trying custom scraping")
+            scraped_lyrics = await self._scrape_lyrics_fallback(title)
+            if scraped_lyrics:
+                # Validate and clean with GPT-4O
+                is_lyrics, result = await self._process_with_gpt4o(scraped_lyrics, title)
+                
+                if not is_lyrics:
+                    logger.warning("GPT-4O determined scraped content is not valid lyrics")
+                    return None
+                    
+                if result:
+                    logger.info("Found lyrics through custom scraping")
+                    return {
+                        'lyrics': result.get('lyrics', ''),
+                        'song': result.get('song', title),
+                        'artist': result.get('artist', 'Unknown'),
+                        'language': result.get('language', 'unknown')
+                    }
             
-            # Third try: Search by lyrics if still no results and title has enough words
-            if not found_lyrics and len(title.split()) >= 2:
-                logger.info("Trying lyrics search")
-                results = self.genius.search_lyrics(title)
-                if results and 'sections' in results and results['sections']:
-                    for hit in results['sections'][0]['hits']:
-                        song_id = hit['result']['id']
-                        song = self.genius.search_song(song_id=song_id)
-                        if song and self._validate_song_match(title, song):
-                            logger.info("Found lyrics through lyrics search")
-                            return self.lyrics_cleaner.clean(song.lyrics)
-            
-            # Final fallback: Try custom scraping only if no lyrics found
-            if not found_lyrics:
-                logger.info("No matches found on Genius, trying custom scraping fallback")
-                scraped_lyrics = await self._scrape_lyrics_fallback(title)
-                if scraped_lyrics:
-                    return scraped_lyrics
-            
+            # 3. Nothing found
+            logger.info("No lyrics found through any method")
             return None
             
         except Exception as e:
