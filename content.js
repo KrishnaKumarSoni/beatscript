@@ -1,4 +1,10 @@
 // Create drawer element with settings
+// Zoom state management
+let currentZoom = 100;
+const MIN_ZOOM = 50;
+const MAX_ZOOM = 200;
+const ZOOM_STEP = 10;
+
 const drawer = document.createElement('div');
 drawer.className = 'yt-drawer';
 drawer.innerHTML = `
@@ -30,6 +36,11 @@ drawer.innerHTML = `
         <span class="toggle-slider"></span>
       </label>
     </div>
+  </div>
+  <div class="zoom-controls">
+    <button class="zoom-btn zoom-out">−</button>
+    <span class="zoom-level">100%</span>
+    <button class="zoom-btn zoom-in">+</button>
   </div>
 `;
 
@@ -175,6 +186,9 @@ const videoState = {
         this.isProcessing = false;
         this.currentVideoId = null;
         this.currentTitle = '';
+        // Reset zoom when cleaning up state
+        currentZoom = 100;
+        updateZoom();
     }
 };
 
@@ -252,42 +266,117 @@ function startTitleCheck(videoId) {
     setTimeout(checkTitle, 1000);
 }
 
-// Main function to handle video updates
-async function updateVideoInfo(title, videoId) {
-    // Verify again we're still on the same video before making API call
-    if (videoId !== videoState.currentVideoId) {
-        debug.log('Video changed before API call, aborting');
-        return;
+// API Configuration
+const API_BASE_URL = 'http://localhost:8000/api';
+
+// Function to extract song info from backend
+async function extractSongInfo(title) {
+    try {
+        debug.log('Extracting song info for:', title);
+        const response = await fetch(`${API_BASE_URL}/search?title=${encodeURIComponent(title)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+        debug.log('API Response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            debug.log('API Error:', response.status, errorText);
+            throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
+        }
+
+        const data = await response.json();
+        debug.log('API Response data:', data);
+
+        return {
+            title: data.song,
+            artist: data.artist,
+            type: data.type,
+            lyrics: data.lyrics,
+            error: data.error
+        };
+    } catch (error) {
+        debug.log('Error extracting song info:', error.message);
+        debug.log('Error stack:', error.stack);
+        return {
+            title: title,
+            artist: 'Unknown',
+            type: 'error',
+            error: `Failed to fetch lyrics: ${error.message}`
+        };
+    }
+}
+
+// Function to update drawer content with song info
+function updateDrawerContent(songInfo) {
+    const drawerContent = drawer.querySelector('.drawer-content');
+    
+    // Clear existing content
+    drawerContent.innerHTML = '';
+    
+    // Create header section
+    const header = document.createElement('div');
+    header.className = 'song-header';
+    header.innerHTML = `
+        <h2>${songInfo.title}</h2>
+        <h3>${songInfo.artist}</h3>
+    `;
+    drawerContent.appendChild(header);
+    
+    // Handle different content types
+    if (songInfo.type === 'error') {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = songInfo.error || 'Could not find song information';
+        drawerContent.appendChild(errorDiv);
+    } else if (songInfo.type === 'instrumental') {
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'info-message';
+        infoDiv.textContent = 'This appears to be an instrumental track';
+        drawerContent.appendChild(infoDiv);
+    } else if (songInfo.type === 'lyrical' && songInfo.lyrics) {
+        const lyricsDiv = document.createElement('div');
+        lyricsDiv.className = 'lyrics-content';
+        lyricsDiv.innerHTML = songInfo.lyrics.replace(/\n/g, '<br>');
+        drawerContent.appendChild(lyricsDiv);
     }
     
-    if (!title || !videoId || videoState.isProcessing) return;
-    
-    const content = drawer.querySelector('.drawer-content');
-    if (!content) return;
+    // Apply current zoom level
+    updateZoom();
+}
 
-    videoState.isProcessing = true;
-    content.innerHTML = '<div class="loading">Extracting song info...</div>';
+// Function to update video info
+async function updateVideoInfo(title, videoId) {
+    if (!title || videoState.isProcessing) {
+        return;
+    }
 
     try {
-        // Final check before API call
-        const currentVideoId = getVideoId(window.location.href);
-        if (currentVideoId !== videoId) {
-            debug.log('Video changed before API call, aborting');
-            return;
+        videoState.isProcessing = true;
+        debug.log('Processing video:', { title, videoId });
+
+        // Show loading state
+        updateDrawerMessage('Fetching song information...');
+        
+        // Extract song information
+        const songInfo = await extractSongInfo(title);
+        
+        // Update drawer with song info
+        updateDrawerContent(songInfo);
+        
+        // Open drawer if auto-open is enabled
+        if (settings.autoOpen) {
+            drawer.classList.add('open');
+            drawer.style.transform = 'translateX(0)';
         }
 
-        const songInfo = await extractSongInfo(title);
-        // Verify one last time after API call
-        if (videoId === videoState.currentVideoId) {
-            updateDrawerContent(songInfo);
-        } else {
-            debug.log('Video changed during API call, not updating drawer');
-        }
     } catch (error) {
-        console.error('Error updating video info:', error);
-        if (videoId === videoState.currentVideoId) {
-            content.innerHTML = '<div class="error">Could not extract song information</div>';
-        }
+        debug.log('Error processing video:', error);
+        updateDrawerMessage('Error: Could not process video');
     } finally {
         videoState.isProcessing = false;
     }
@@ -362,6 +451,17 @@ function setupEventListeners() {
         }
     });
 
+    // Zoom event listeners
+    const zoomIn = drawer.querySelector('.zoom-in');
+    const zoomOut = drawer.querySelector('.zoom-out');
+
+    if (zoomIn) {
+        zoomIn.addEventListener('click', () => handleZoom(1));
+    }
+    if (zoomOut) {
+        zoomOut.addEventListener('click', () => handleZoom(-1));
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initializeOnLoad);
     } else {
@@ -391,35 +491,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-async function extractSongInfo(title) {
-    try {
-        const response = await fetch('http://localhost:8000/api/extract-song-info', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ title })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to extract song info');
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('Error extracting song info:', error);
-        return { song: 'Unknown Song', artist: 'Unknown Artist' };
+// Add zoom functionality
+function updateZoom() {
+    const lyrics = drawer.querySelector('.lyrics');
+    const zoomLevel = drawer.querySelector('.zoom-level');
+    if (lyrics && zoomLevel) {
+        lyrics.style.transform = `scale(${currentZoom / 100})`;
+        zoomLevel.textContent = `${currentZoom}%`;
     }
 }
 
-function updateDrawerContent(songInfo) {
-    const content = drawer.querySelector('.drawer-content');
-    if (content) {
-        content.innerHTML = `
-            <div class="song-info">
-                <div class="song-name">${songInfo.song}</div>
-                <div class="artist-name">${songInfo.artist}</div>
-            </div>
-        `;
+function handleZoom(direction) {
+    const newZoom = currentZoom + (direction * ZOOM_STEP);
+    if (newZoom >= MIN_ZOOM && newZoom <= MAX_ZOOM) {
+        currentZoom = newZoom;
+        updateZoom();
     }
 } 
