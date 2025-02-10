@@ -159,6 +159,12 @@
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Header section */
 .drawer-header {
   display: flex;

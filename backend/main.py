@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 import re
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Callable, Dict, Any
 import asyncio
 from urllib.parse import quote_plus, unquote
 import random
@@ -15,17 +15,21 @@ import os
 import logging
 import json
 from lyrics_cleaner import LyricsCleaner
+from firebase_service import firebase_service
+from fastapi.responses import JSONResponse
+from itertools import permutations
 
-# Initialize logger
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize components
 app = FastAPI()
-
-# Initialize scrapers
-lyrics_scraper = LyricsScraper()
 genius_api = GeniusAPI()
+lyrics_cleaner = LyricsCleaner()
+lyrics_scraper = LyricsScraper()
 
-# CORS middleware
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -137,9 +141,16 @@ LYRICS_SITES = [
 ]
 
 
+class LyricsError(Exception):
+    """Custom exception for lyrics-related errors"""
+    def __init__(self, source: str, stage: str, message: str):
+        self.source = source
+        self.stage = stage
+        self.message = message
+        super().__init__(f"{source} error at {stage}: {message}")
+
 class SearchRequest(BaseModel):
     title: str
-
 
 class SongResponse(BaseModel):
     song: str
@@ -147,6 +158,7 @@ class SongResponse(BaseModel):
     type: str = "lyrical"  # can be "lyrical", "instrumental", or "error"
     lyrics: Optional[str] = None
     error: Optional[str] = None
+    source: Optional[str] = None  # indicates which source provided the lyrics
 
 
 def clean_title(title: str) -> str:
@@ -285,108 +297,145 @@ def is_likely_instrumental(title: str) -> bool:
 async def search_general_lyrics(title: str, client: httpx.AsyncClient) -> Optional[Tuple[str, str]]:
     """Final backup method to search for lyrics on any website"""
     try:
-        # Construct search queries
+        # Prioritized search queries for Indian content
         search_queries = [
-            f"{title} lyrics",
-            f"{title} song lyrics",
-            f"{title} full lyrics",
+            # Direct site searches
+            f"{title} lyrics site:hindilyrics.net",
+            f"{title} lyrics site:lyricsmint.com",
+            f"{title} lyrics site:lyricsbogie.com",
+            f"{title} lyrics site:lyricsted.com",
+            f"{title} lyrics site:bollywoodlyrics.com",
+            
+            # Specialized searches
+            f"{title} hindi lyrics",
+            f"{title} bollywood lyrics",
+            f"{title} indian lyrics",
+            f"{title} lyrics with translation",
+            
+            # Word permutations for Indian songs
+            *[f"{' '.join(p)} hindi lyrics" for p in permutations(title.split(), len(title.split()))],
+            *[f"{' '.join(p)} bollywood lyrics" for p in permutations(title.split(), len(title.split()))]
         ]
 
         for query in search_queries:
-            encoded_query = quote_plus(query)
-            search_url = f"https://html.duckduckgo.com/html?q={encoded_query}"
-
-            response = await client.get(
-                search_url,
-                headers=get_random_headers(),
-                follow_redirects=True,
-                timeout=10.0,
-            )
-
-            if response.status_code == 200:
-                # Look for links that might contain lyrics
-                lyrics_patterns = [
-                    r'href="([^"]+lyrics[^"]*)"',
-                    r'href="([^"]+song[^"]*)"',
-                    r'href="([^"]*/track/[^"]*)"',
+            try:
+                # Try both Google and DuckDuckGo for each query
+                search_urls = [
+                    f"https://www.google.com/search?q={quote_plus(query)}",
+                    f"https://html.duckduckgo.com/html?q={quote_plus(query)}"
                 ]
 
-                for pattern in lyrics_patterns:
-                    urls = re.findall(pattern, response.text, re.IGNORECASE)
-                    for url in urls:
-                        # Skip known sites that we've already tried
-                        if any(site[0] in url for site in LYRICS_SITES):
-                            continue
-                        
-                        # Clean and validate URL
-                        url = unquote(url).split("&amp;")[0].split("?")[0]
-                        if not url.startswith("http"):
-                            continue
-                        
-                        try:
-                            # Try to fetch the page
-                            page_response = await client.get(
-                                url,
-                                headers=get_random_headers(),
-                                follow_redirects=True,
-                                timeout=10.0,
-                            )
+                for search_url in search_urls:
+                    logger.info(f"Trying search URL: {search_url}")
+                    response = await client.get(
+                        search_url,
+                        headers=get_random_headers(),
+                        follow_redirects=True,
+                        timeout=10.0
+                    )
 
-                            if page_response.status_code == 200:
-                                # Check if page likely contains lyrics
-                                text = page_response.text.lower()
-                                if "lyrics" in text and len(text) > 500:
-                                    # Use BeautifulSoup to extract main content
-                                    soup = BeautifulSoup(page_response.text, 'lxml')
-                                    
-                                    # Remove common non-lyrics elements
-                                    for elem in soup.select('script, style, header, footer, nav, iframe, .ad, .ads, .advertisement'):
-                                        elem.decompose()
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.text, 'lxml')
+                        
+                        # Extract links based on search engine
+                        links = []
+                        if "google.com" in search_url:
+                            links = soup.select('a[href^="/url?q="]')  # Google links
+                        else:
+                            links = soup.select('.result__a')  # DuckDuckGo links
 
-                                    # Try to find the lyrics container
-                                    lyrics_container = None
+                        for link in links:
+                            href = link.get('href', '')
+                            
+                            # Clean up Google redirect URLs
+                            if "google.com" in search_url and href.startswith('/url?q='):
+                                href = href.split('/url?q=')[1].split('&')[0]
+                            
+                            # Skip non-lyrics sites
+                            if not any(site in href.lower() for site in [
+                                'lyrics', 'song', 'gaana', 'saavn', 
+                                'hindi', 'bollywood', 'hindilyrics',
+                                'lyricsmint', 'lyricsbogie', 'lyricsted'
+                            ]):
+                                continue
+
+                            try:
+                                logger.info(f"Attempting to fetch lyrics from: {href}")
+                                page_response = await client.get(
+                                    href,
+                                    headers=get_random_headers(),
+                                    follow_redirects=True,
+                                    timeout=10.0
+                                )
+
+                                if page_response.status_code == 200:
+                                    lyrics_soup = BeautifulSoup(page_response.text, 'lxml')
                                     
-                                    # Common lyrics container patterns
+                                    # Comprehensive list of lyrics selectors
                                     selectors = [
-                                        '[class*="lyrics"]',
-                                        '[class*="Lyrics"]',
-                                        '[id*="lyrics"]',
-                                        '[id*="Lyrics"]',
-                                        'pre',
-                                        '.song-text',
-                                        '.track-text',
-                                        'article',
-                                        '.main-content'
+                                        # Common lyrics containers
+                                        '.lyrics-content', '.entry-content',
+                                        '.lyric-content', '.song-lyrics',
+                                        '#lyrics', '[class*="lyrics"]',
+                                        '.main-content', '.song-content',
+                                        
+                                        # Indian lyrics specific selectors
+                                        '.hindi-lyrics', '.english-lyrics',
+                                        '.lyrics-translation', '.lyrics_text',
+                                        '#lyric_text', '#songLyricsDiv',
+                                        '.bollywood-lyrics', '.indian-lyrics',
+                                        
+                                        # Generic content selectors
+                                        'article', '.post-content',
+                                        '.content-area', '.main-content'
                                     ]
 
                                     for selector in selectors:
-                                        containers = soup.select(selector)
-                                        for container in containers:
-                                            text = container.get_text()
-                                            # Check if this looks like lyrics
-                                            if len(text.split('\n')) > 5 and len(text) > 200:
-                                                lyrics_container = container
-                                                break
-                                        if lyrics_container:
-                                            break
-                                    
-                                    if lyrics_container:
-                                        lyrics_text = lyrics_container.get_text('\n')
-                                        # Basic validation of lyrics content
-                                        lines = [line.strip() for line in lyrics_text.split('\n')]
-                                        lines = [line for line in lines if line]
-                                        
-                                        if len(lines) > 5:  # Minimum reasonable length for lyrics
-                                            return url, lyrics_text
-                        
-                        except Exception as e:
-                            print(f"Error processing URL {url}: {str(e)}")
-                            continue
-        
-            await asyncio.sleep(random.uniform(1, 2))
-        
+                                        lyrics_div = lyrics_soup.select_one(selector)
+                                        if lyrics_div:
+                                            # Remove unwanted elements
+                                            for unwanted in lyrics_div.select(
+                                                'script, style, .ad, .ads, .share-buttons, ' +
+                                                '.video, .comment, .breadcrumb, .navigation, ' +
+                                                '.social, .related, .sidebar'
+                                            ):
+                                                unwanted.decompose()
+                                            
+                                            # Get text with better formatting
+                                            lyrics_text = ''
+                                            for elem in lyrics_div.children:
+                                                if isinstance(elem, str):
+                                                    lyrics_text += elem + '\n'
+                                                elif elem.name == 'br':
+                                                    lyrics_text += '\n'
+                                                elif elem.name in ['p', 'div']:
+                                                    lyrics_text += elem.get_text('\n') + '\n\n'
+                                                else:
+                                                    lyrics_text += elem.get_text() + '\n'
+                                            
+                                            # Clean up the text
+                                            lines = [line.strip() for line in lyrics_text.split('\n')]
+                                            lines = [line for line in lines if line and len(line) > 1]
+                                            
+                                            # Validate content
+                                            if len(lines) > 5 and any(len(line) > 20 for line in lines):
+                                                logger.info(f"Found valid lyrics at: {href}")
+                                                return href, '\n'.join(lines)
+
+                                await asyncio.sleep(1)  # Rate limiting
+                            except Exception as e:
+                                logger.error(f"Error processing URL {href}: {str(e)}")
+                                continue
+
+                    await asyncio.sleep(1)  # Rate limiting between search engines
+            except Exception as e:
+                logger.error(f"Error in search query {query}: {str(e)}")
+                continue
+
+            await asyncio.sleep(1)  # Rate limiting between queries
+
     except Exception as e:
-        print(f"Error in general lyrics search: {str(e)}")
+        logger.error(f"Error in general lyrics search: {str(e)}")
     
     return None
 
@@ -538,109 +587,211 @@ Return ONLY the cleaned title, nothing else."""
     return clean_title(title)
 
 
+async def safe_search_with_logging(title: str, source: str, search_func: Callable, *args) -> Optional[Dict[str, Any]]:
+    """Execute search function with error handling and logging"""
+    try:
+        logger.info(f"Starting {source} search for: {title}")
+        result = await search_func(*args)
+        if result:
+            logger.info(f"Successfully found lyrics through {source}")
+            return {
+                'success': True,
+                'data': result,
+                'source': source
+            }
+        logger.info(f"No lyrics found through {source}")
+        return None
+    except Exception as e:
+        logger.error(f"{source} search failed: {str(e)}")
+        raise LyricsError(source, "search", str(e))
+
+
+async def genius_search(title: str) -> Optional[str]:
+    """Primary search using Genius API - returns raw lyrics without cleaning"""
+    lyrics = await genius_api.search_lyrics(title)
+    if lyrics:
+        return lyrics  # Return raw lyrics without cleaning for Genius
+    return None
+
+
+async def jiosaavn_search(title: str) -> Optional[str]:
+    """Secondary search using JioSaavn API"""
+    try:
+        # Step 1: Search for the song
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # First try direct search
+            search_url = f"https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query={quote_plus(title)}"
+            headers = {
+                **get_random_headers(),
+                'Accept': 'application/json',
+                'Host': 'www.jiosaavn.com',
+                'Origin': 'https://www.jiosaavn.com',
+                'Referer': 'https://www.jiosaavn.com/'
+            }
+            
+            response = await client.get(search_url, headers=headers)
+            response.raise_for_status()
+            
+            search_data = response.json()
+            if not search_data or 'songs' not in search_data:
+                # Try alternative search endpoint
+                search_url = f"https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&q={quote_plus(title)}&n=10"
+                response = await client.get(search_url, headers=headers)
+                response.raise_for_status()
+                search_data = response.json()
+
+            songs = search_data.get('songs', {}).get('data', []) or search_data.get('results', [])
+            if not songs:
+                return None
+
+            # Step 2: Get first matching song's details
+            for song in songs:
+                song_id = song.get('id')
+                if not song_id:
+                    continue
+
+                # Get song details
+                details_url = f"https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids={song_id}"
+                details_response = await client.get(details_url, headers=headers)
+                details_response.raise_for_status()
+                
+                song_details = details_response.json()
+                if not song_details or song_id not in song_details:
+                    continue
+
+                # Step 3: Get lyrics if available
+                lyrics_id = song_details[song_id].get('lyrics_snippet_id') or song_details[song_id].get('lyrics_id')
+                if not lyrics_id:
+                    continue
+
+                lyrics_url = f"https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&ctx=web6dot0&_format=json&_marker=0&lyrics_id={lyrics_id}"
+                lyrics_response = await client.get(lyrics_url, headers=headers)
+                lyrics_response.raise_for_status()
+                
+                lyrics_data = lyrics_response.json()
+                if lyrics_data and 'lyrics' in lyrics_data:
+                    return lyrics_data['lyrics']
+
+        return None
+    except Exception as e:
+        logger.error(f"Error in JioSaavn search: {str(e)}")
+        return None
+
+
+async def web_search(title: str) -> Optional[str]:
+    """Last resort web search for lyrics"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            lyrics = await lyrics_scraper.scrape_lyrics(title, client)
+            if lyrics:
+                return lyrics
+        return None
+    except Exception as e:
+        logger.error(f"Error in web search: {str(e)}")
+        return None
+
+
 @app.get("/api/search")
 @app.post("/api/search")
 async def search_song(
     title_query: Optional[str] = Query(None, alias="title"),
     search_body: Optional[SearchRequest] = None,
     preferred_language: str = Query("en", description="Preferred lyrics language (en, hi, etc.)")
-):
+) -> SongResponse:
+    """Main endpoint for lyrics search following the three-step flow"""
     try:
+        # Get title from either query param or body
         title = title_query or (search_body.title if search_body else None)
-
         if not title:
-            raise HTTPException(
-                status_code=400,
-                detail="Title is required either as query parameter or in request body",
-            )
+            raise HTTPException(status_code=400, detail="Title is required")
 
-        # Use GPT for smarter title cleaning
+        # Clean title using GPT
         cleaned_title = await clean_title_with_gpt(title)
-        print(f"Processing title: {title} -> {cleaned_title}")
+        logger.info(f"Processed title: {title} -> {cleaned_title}")
 
-        if len(cleaned_title) < 3:
-            return SongResponse(
-                song=title,
-                artist="Unknown",
-                type="error",
-                error="Title too short after cleaning",
-            )
-
-        # Check if instrumental before proceeding
-        if is_likely_instrumental(title):
-            return SongResponse(
-                song=cleaned_title,
-                artist="Unknown",
-                type="instrumental",
-                lyrics=None,
-                error=None,
-            )
-
-        # First try Genius API
-        lyrics = await genius_api.search_lyrics(cleaned_title, "")
-        if lyrics:
-            # Get song and artist from Genius API response
+        # 1. Primary: Genius Search (return raw)
+        genius_result = await safe_search_with_logging(cleaned_title, "Genius", genius_search, cleaned_title)
+        if genius_result and genius_result['data']:
+            # Get song info from Genius
             song_info = await genius_api.get_song_info(cleaned_title)
             return SongResponse(
-                song=song_info.get("song", cleaned_title),
-                artist=song_info.get("artist", "Unknown"),
+                song=song_info['song'],
+                artist=song_info['artist'],
                 type="lyrical",
-                lyrics=lyrics,
+                lyrics=genius_result['data'],
+                source="Genius"
             )
 
-        # Only try other sources if Genius API didn't find lyrics
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Try known lyrics sites
-            for site_info in LYRICS_SITES:
-                try:
-                    lyrics_url = await search_lyrics_site(cleaned_title, site_info, client)
-                    if lyrics_url:
-                        lyrics_text = await lyrics_scraper.scrape_lyrics(lyrics_url, client)
-                        if lyrics_text:
-                            # Get song and artist from the lyrics site
-                            song_info = await lyrics_scraper.get_song_info(lyrics_url, client)
-                            # Clean lyrics using GPT
-                            cleaned_lyrics = await clean_lyrics_with_gpt(lyrics_text, preferred_language)
-                            if cleaned_lyrics:
-                                return SongResponse(
-                                    song=song_info.get("song", cleaned_title),
-                                    artist=song_info.get("artist", "Unknown"),
-                                    type="lyrical",
-                                    lyrics=cleaned_lyrics,
-                                )
-                except Exception as e:
-                    logger.error(f"Error with lyrics site {site_info[0]}: {str(e)}")
-                    continue
-
-            # Only try general web search if no lyrics found from known sites
-            logger.info("Trying general web search for lyrics...")
-            try:
-                result = await search_general_lyrics(cleaned_title, client)
-                if result:
-                    url, lyrics_text = result
-                    # Clean the lyrics
-                    cleaned_lyrics = await clean_lyrics_with_gpt(lyrics_text, preferred_language)
-                    if cleaned_lyrics:
-                        return SongResponse(
-                            song=cleaned_title,
-                            artist="Unknown",
-                            type="lyrical",
-                            lyrics=cleaned_lyrics,
-                        )
-            except Exception as e:
-                logger.error(f"Error in general lyrics search: {str(e)}")
-
-            # If no lyrics found from any source
+        # 2. Secondary: JioSaavn Search (with GPT cleaning)
+        jiosaavn_result = await safe_search_with_logging(cleaned_title, "JioSaavn", jiosaavn_search, cleaned_title)
+        if jiosaavn_result and jiosaavn_result['data']:
+            cleaned_lyrics = await clean_lyrics_with_gpt(jiosaavn_result['data'], preferred_language)
             return SongResponse(
                 song=cleaned_title,
-                artist="Unknown",
-                type="error",
-                error=f"No lyrics found. Cleaned title: {cleaned_title}",
+                artist=jiosaavn_result.get('artist', 'Unknown'),
+                type="lyrical",
+                lyrics=cleaned_lyrics,
+                source="JioSaavn"
             )
-            
+
+        # 3. Last Resort: Web Search (with GPT cleaning)
+        web_result = await safe_search_with_logging(cleaned_title, "Web", web_search, cleaned_title)
+        if web_result and web_result['data']:
+            cleaned_lyrics = await clean_lyrics_with_gpt(web_result['data'], preferred_language)
+            return SongResponse(
+                song=cleaned_title,
+                artist=web_result.get('artist', 'Unknown'),
+                type="lyrical",
+                lyrics=cleaned_lyrics,
+                source=web_result.get('source', 'Web')
+            )
+
+        # No lyrics found
+        return SongResponse(
+            song=cleaned_title,
+            artist="Unknown",
+            type="error",
+            error="No lyrics found from any source",
+            source=None
+        )
+
+    except LyricsError as e:
+        logger.error(f"Lyrics search error: {str(e)}")
+        return SongResponse(
+            song=title,
+            artist="Unknown",
+            type="error",
+            error=f"Error searching lyrics: {str(e)}",
+            source=None
+        )
     except Exception as e:
-        print(f"Error processing request: {str(e)}")
+        logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/save")
+async def save_song(song_data: dict):
+    """Save a song to Firebase"""
+    try:
+        result = await firebase_service.save_song(song_data)
+        if result['success']:
+            return {"success": True, "id": result['id']}
+        else:
+            if 'existing_id' in result:
+                return JSONResponse(
+                    status_code=409,  # Conflict
+                    content={"success": False, "error": result['error'], "existing_id": result['existing_id']}
+                )
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": result['error']}
+            )
+    except Exception as e:
+        logger.error(f"Error saving song: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
 
 
 if __name__ == "__main__":

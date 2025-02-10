@@ -21,25 +21,209 @@ class LyricsCleaner:
             r'\d+\s*Embed\s*$',
             r'.*?Release Date.*$',
             r'.*?Album:.*$',
-            r'.*?Artist:.*$'
+            r'.*?Artist:.*$',
+            r'.*?Copyright.*$',
+            r'.*?All Rights Reserved.*$',
+            r'.*?Lyrics submitted by.*$'
         ]
+        
+        # Language-specific patterns
+        self.language_markers = {
+            'hindi': ['हिंदी', 'देवनागरी', 'बोल'],
+            'english': ['Translation', 'English', 'Lyrics'],
+            'romanized': ['Romanized', 'Roman', 'Transliteration']
+        }
 
     def clean(self, lyrics: str) -> str:
-        """Clean lyrics by removing metadata and formatting"""
+        """Clean lyrics while preserving structure and handling multiple languages"""
         if not lyrics:
             return ""
 
-        # First remove duplicate sections
-        lyrics = self._remove_duplicate_sections(lyrics)
+        try:
+            # First, remove everything after 1Embed if present
+            if '1Embed' in lyrics:
+                lyrics = lyrics.split('1Embed')[0]
+
+            # Remove common metadata markers
+            metadata_patterns = [
+                r'\d+\s*Contributors?',
+                r'\d*\s*Embed',
+                r'You might also like',
+                r'[0-9]+ views',
+                r'Share.*$',
+                r'Print.*$',
+                r'Download.*$',
+                r'Lyrics\s*$',
+                r'Contributors.*$',
+                r'.*?Release Date.*$',
+                r'.*?Album:.*$',
+                r'.*?Artist:.*$',
+                r'.*?Copyright.*$',
+                r'.*?All Rights Reserved.*$',
+                r'.*?Lyrics submitted by.*$'
+            ]
+            
+            for pattern in metadata_patterns:
+                lyrics = re.sub(pattern, '', lyrics, flags=re.IGNORECASE)
+
+            # Split into sections and clean
+            sections = []
+            current_section = []
+            seen_content = set()
+            
+            for line in lyrics.split('\n'):
+                line = line.strip()
+                
+                # Skip empty lines and metadata
+                if not line or self._is_metadata_line(line):
+                    if current_section:
+                        sections.append('\n'.join(current_section))
+                        current_section = []
+                    continue
+                
+                # Check for section headers
+                if re.match(r'\[(.*?)\]', line):
+                    if current_section:
+                        sections.append('\n'.join(current_section))
+                        current_section = []
+                    current_section.append(line)
+                    continue
+                
+                # Use line hash for duplicate detection
+                line_hash = hash(line.lower())
+                if line_hash not in seen_content:
+                    seen_content.add(line_hash)
+                    current_section.append(line)
+            
+            # Add the last section
+            if current_section:
+                sections.append('\n'.join(current_section))
+            
+            # Remove duplicate sections
+            unique_sections = []
+            seen_sections = set()
+            
+            for section in sections:
+                # Normalize section for comparison
+                normalized = self._normalize_section(section)
+                if normalized and normalized not in seen_sections:
+                    seen_sections.add(normalized)
+                    unique_sections.append(section)
+            
+            # Join sections with proper spacing
+            cleaned = '\n\n'.join(unique_sections)
+            
+            # Final cleanup
+            cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)  # Replace 3+ newlines with 2
+            cleaned = re.sub(r'[ \t]+$', '', cleaned, flags=re.MULTILINE)  # Remove trailing whitespace
+            
+            return cleaned.strip()
+            
+        except Exception as e:
+            logger.error(f"Error in lyrics cleaning: {str(e)}")
+            return lyrics.strip()
+
+    def _detect_language_sections(self, lyrics: str) -> List[Tuple[str, str]]:
+        """Detect and separate different language sections in lyrics"""
+        sections = []
+        current_section = []
+        current_lang = 'unknown'
         
-        # Split into sections
-        sections = self._split_into_sections(lyrics)
+        lines = lyrics.split('\n')
+        for line in lines:
+            # Check for language markers
+            detected_lang = None
+            for lang, markers in self.language_markers.items():
+                if any(marker.lower() in line.lower() for marker in markers):
+                    if current_section:
+                        sections.append(('\n'.join(current_section), current_lang))
+                        current_section = []
+                    detected_lang = lang
+                    break
+            
+            if detected_lang:
+                current_lang = detected_lang
+            current_section.append(line)
         
-        # Remove metadata sections
-        cleaned_sections = self._remove_metadata_sections(sections)
+        # Add the last section
+        if current_section:
+            sections.append(('\n'.join(current_section), current_lang))
         
-        # Join sections with double newline
-        return '\n\n'.join(cleaned_sections).strip()
+        return sections
+
+    def _clean_section(self, section: str, lang: str) -> str:
+        """Clean a single language section while preserving its structure"""
+        try:
+            # Remove metadata
+            for pattern in self.metadata_patterns:
+                section = re.sub(pattern, '', section, flags=re.IGNORECASE | re.MULTILINE)
+            
+            # Split into lines and clean
+            lines = section.split('\n')
+            cleaned_lines = []
+            
+            for line in lines:
+                line = line.strip()
+                
+                # Skip empty or metadata-only lines
+                if not line or self._is_metadata_line(line):
+                    continue
+                
+                # Preserve section headers
+                if re.match(r'\[(.*?)\]', line):
+                    cleaned_lines.append(line)
+                    continue
+                
+                # Clean line based on language
+                if lang == 'hindi':
+                    # Preserve Hindi characters and formatting
+                    line = re.sub(r'[^\u0900-\u097F\s\[\]\(\)।॥]', '', line)
+                elif lang == 'english':
+                    # Clean English text while preserving punctuation
+                    line = re.sub(r'[^\w\s\[\]\(\),.!?\'"-]', '', line)
+                elif lang == 'romanized':
+                    # Preserve diacritics and special characters
+                    line = unicodedata.normalize('NFKC', line)
+                
+                if line:
+                    cleaned_lines.append(line)
+            
+            # Join lines while preserving structure
+            return self._join_lines_with_structure(cleaned_lines)
+            
+        except Exception as e:
+            logger.error(f"Error cleaning section: {str(e)}")
+            return section.strip()
+
+    def _is_metadata_line(self, line: str) -> bool:
+        """Check if a line contains only metadata"""
+        metadata_indicators = [
+            'download', 'print', 'share', 'embed', 'copyright',
+            'all rights reserved', 'lyrics provided by', 'submitted by'
+        ]
+        return any(indicator in line.lower() for indicator in metadata_indicators)
+
+    def _join_lines_with_structure(self, lines: List[str]) -> str:
+        """Join lines while preserving verse structure"""
+        result = []
+        current_verse = []
+        
+        for line in lines:
+            # Check if line is a section header
+            if re.match(r'\[(.*?)\]', line):
+                # Add previous verse if exists
+                if current_verse:
+                    result.append('\n'.join(current_verse))
+                    current_verse = []
+                result.append(line)
+            else:
+                current_verse.append(line)
+        
+        # Add the last verse
+        if current_verse:
+            result.append('\n'.join(current_verse))
+        
+        return '\n\n'.join(result)
 
     def _remove_duplicate_sections(self, lyrics: str) -> str:
         """Remove duplicate sections while preserving structure"""

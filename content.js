@@ -182,10 +182,12 @@ const videoState = {
     currentVideoId: null,
     isProcessing: false,
     currentTitle: '',
+    isSaved: false,
     cleanup() {
         this.isProcessing = false;
         this.currentVideoId = null;
         this.currentTitle = '';
+        this.isSaved = false;
         // Reset zoom when cleaning up state
         currentZoom = 100;
         updateZoom();
@@ -318,12 +320,24 @@ function updateDrawerContent(songInfo) {
     // Clear existing content
     drawerContent.innerHTML = '';
     
-    // Create header section
+    // Create header section with save button
     const header = document.createElement('div');
     header.className = 'song-header';
     header.innerHTML = `
-        <h2>${songInfo.title}</h2>
-        <h3>${songInfo.artist}</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2>${songInfo.title}</h2>
+                <h3>${songInfo.artist}</h3>
+            </div>
+            <button class="settings-btn save-btn" style="background: rgba(255, 255, 255, 0.1); transition: all 0.2s ease;">
+                <div class="spinner" style="display: none; width: 20px; height: 20px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite;"></div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+            </button>
+        </div>
     `;
     drawerContent.appendChild(header);
     
@@ -345,8 +359,100 @@ function updateDrawerContent(songInfo) {
         drawerContent.appendChild(lyricsDiv);
     }
     
+    // Initialize save button state
+    const saveBtn = drawerContent.querySelector('.save-btn');
+    if (saveBtn) {
+        initializeSaveButton(saveBtn, songInfo);
+    }
+    
     // Apply current zoom level
     updateZoom();
+}
+
+// Save functionality
+function initializeSaveButton(saveBtn, songInfo) {
+    // Check if already saved
+    const savedVideos = JSON.parse(localStorage.getItem('savedVideos') || '[]');
+    const isSaved = savedVideos.includes(videoState.currentVideoId);
+    
+    // Update initial state
+    if (isSaved) {
+        saveBtn.style.background = '#4CAF50';
+        videoState.isSaved = true;
+    }
+    
+    saveBtn.addEventListener('click', async () => {
+        if (saveBtn.classList.contains('saving')) return;
+        
+        if (videoState.isSaved) {
+            // Unsave (local only)
+            const savedVideos = JSON.parse(localStorage.getItem('savedVideos') || '[]');
+            const newSavedVideos = savedVideos.filter(id => id !== videoState.currentVideoId);
+            localStorage.setItem('savedVideos', JSON.stringify(newSavedVideos));
+            
+            // Update UI
+            saveBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+            videoState.isSaved = false;
+            return;
+        }
+        
+        // Save flow
+        try {
+            // Show loading state
+            saveBtn.classList.add('saving');
+            const spinner = saveBtn.querySelector('.spinner');
+            const svg = saveBtn.querySelector('svg');
+            if (spinner) spinner.style.display = 'block';
+            if (svg) svg.style.display = 'none';
+            
+            // Prepare song data
+            const songData = {
+                video_id: videoState.currentVideoId,
+                title: songInfo.title,
+                artist: songInfo.artist,
+                lyrics: songInfo.lyrics,
+                type: songInfo.type,
+                timestamp: Date.now()
+            };
+            
+            // Save to Firebase
+            const response = await fetch(`${API_BASE_URL}/save`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(songData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success || response.status === 409) {
+                // Save to local storage
+                const savedVideos = JSON.parse(localStorage.getItem('savedVideos') || '[]');
+                if (!savedVideos.includes(videoState.currentVideoId)) {
+                    savedVideos.push(videoState.currentVideoId);
+                    localStorage.setItem('savedVideos', JSON.stringify(savedVideos));
+                }
+                
+                // Update UI
+                saveBtn.style.background = '#4CAF50';
+                videoState.isSaved = true;
+            } else {
+                throw new Error(result.error || 'Failed to save');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            saveBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+            videoState.isSaved = false;
+        } finally {
+            // Reset loading state
+            saveBtn.classList.remove('saving');
+            const spinner = saveBtn.querySelector('.spinner');
+            const svg = saveBtn.querySelector('svg');
+            if (spinner) spinner.style.display = 'none';
+            if (svg) svg.style.display = 'block';
+        }
+    });
 }
 
 // Function to update video info
