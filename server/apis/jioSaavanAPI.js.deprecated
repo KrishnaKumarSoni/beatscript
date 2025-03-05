@@ -1,0 +1,105 @@
+const axios = require('axios');
+
+/**
+ * Gets the JioSaavan song URL and metadata for a given search string
+ * 
+ * @param {string} searchString - Cleaned search string
+ * @returns {Promise<Object|null>} Object containing song URL and metadata or null if not found
+ */
+async function getURLJioSaavanAPI(searchString) {
+  try {
+    if (!searchString) {
+      console.error('Missing required parameter: searchString');
+      return null;
+    }
+    
+    // Step 1: Search for the song using JioSaavan's autocomplete API
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(searchString)}`;
+    
+    const response = await axios.get(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    // Check if we have search results
+    if (response.data && 
+        response.data.songs && 
+        response.data.songs.data && 
+        Array.isArray(response.data.songs.data) && 
+        response.data.songs.data.length > 0) {
+      
+      // Get the first song result (most relevant)
+      const firstSong = response.data.songs.data[0];
+      
+      if (firstSong.url) {
+        return {
+          url: firstSong.url,
+          title: firstSong.title || null,
+          artist: firstSong.more_info?.primary_artists || firstSong.more_info?.singers || null,
+          album: firstSong.more_info?.album || null,
+          year: firstSong.more_info?.year || null,
+          imageUrl: firstSong.image || null,
+          source: 'JioSaavan'
+        };
+      }
+      
+      // If we have the song ID but not the URL, get the details
+      if (firstSong.id) {
+        const songId = firstSong.id;
+        const detailsUrl = `https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0%3F_marker%3D0&_format=json&pids=${songId}`;
+        
+        const detailsResponse = await axios.get(detailsUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        });
+        
+        if (detailsResponse.data && detailsResponse.data[songId]) {
+          const songDetails = detailsResponse.data[songId];
+          return {
+            url: songDetails.perma_url || null,
+            title: songDetails.song || null,
+            artist: songDetails.primary_artists || songDetails.singers || null,
+            album: songDetails.album || null,
+            year: songDetails.year || null,
+            imageUrl: songDetails.image || null,
+            releaseDate: songDetails.release_date || null,
+            source: 'JioSaavan'
+          };
+        }
+      }
+    }
+    
+    // Try with topquery if songs array is empty
+    if (response.data && 
+        response.data.topquery && 
+        response.data.topquery.data && 
+        Array.isArray(response.data.topquery.data) && 
+        response.data.topquery.data.length > 0) {
+      
+      const topResult = response.data.topquery.data[0];
+      
+      if (topResult.url) {
+        return {
+          url: topResult.url,
+          title: topResult.title || null,
+          artist: topResult.more_info?.primary_artists || topResult.more_info?.singers || null,
+          album: topResult.more_info?.album || null,
+          year: topResult.more_info?.year || null,
+          imageUrl: topResult.image || null,
+          source: 'JioSaavan'
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in JioSaavan API search:', error.message);
+    return null;
+  }
+}
+
+module.exports = {
+  getURLJioSaavanAPI
+};

@@ -1,0 +1,275 @@
+.beatscript-drawer {
+  position: fixed;
+  top: 0;
+  right: -500px;
+  width: 500px;
+  height: 100vh;
+  background: linear-gradient(180deg, #1565C0 0%, #0D47A1 100%);
+  border-radius: 16px 0 0 16px;
+  transition: right 0.3s ease-in-out;
+  z-index: 9999;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.drawer-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.drawer-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.drawer-content::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.drawer-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.drawer-nav {
+  position: relative;
+  height: 80px;
+  min-height: 80px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 0 24px;
+  z-index: 1;
+}
+
+.drawer-close-button,
+.drawer-refresh-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  transform-origin: center;
+  margin-right: auto;
+}
+
+.drawer-close-button {
+  order: 1;
+}
+
+.drawer-refresh-button {
+  order: 0;
+}
+
+.drawer-close-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.drawer-close-icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+
+.drawer-close-line {
+  position: absolute;
+  top: 7px;
+  left: 0;
+  width: 16px;
+  height: 2px;
+  background: white;
+  border-radius: 1px;
+  transition: all 0.2s;
+}
+
+.drawer-close-line:first-child {
+  transform: rotate(45deg);
+}
+
+.drawer-close-line:last-child {
+  transform: rotate(-45deg);
+}
+
+.drawer-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  cursor: ew-resize;
+  transition: background 0.2s;
+}
+
+.drawer-resize-handle:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.drawer-content-card {
+  margin: 16px 0 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.drawer-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.drawer-channel {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.drawer-lyrics {
+  margin: 0;
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease-out;
+}
+
+.drawer-lyrics-content {
+  white-space: pre-wrap;
+  line-height: 1.8;
+  font-size: 15px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  margin: 0 0 24px 16px;
+  letter-spacing: 0.2px;
+}
+
+.drawer-source-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  font-size: 12px;
+  margin: 0 0 48px 16px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.3px;
+}
+
+.drawer-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: 0.2px;
+  padding: 0 24px;
+}
+
+.drawer-error-emoji {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.drawer-error-message {
+  line-height: 1.6;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+.drawer-refresh-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.drawer-refresh-icon {
+  width: 16px;
+  height: 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-refresh-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: white;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.drawer-refresh-button.refreshing .drawer-refresh-icon {
+  animation: spin 1s linear infinite;
+}

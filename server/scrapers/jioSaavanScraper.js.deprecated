@@ -1,0 +1,270 @@
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+/**
+ * Transforms a JioSaavan song URL to its lyrics URL format
+ * @param {string} url - The JioSaavan song URL
+ * @returns {string} - The lyrics URL
+ */
+function transformToLyricsUrl(url) {
+  try {
+    // If it's already a lyrics URL, return as is
+    if (url.includes('/lyrics/')) {
+      return url;
+    }
+    
+    // Extract song name and ID from URL
+    // Example: https://www.jiosaavn.com/song/sajdaa/MiZacyBRWAU -> sajdaa, MiZacyBRWAU
+    const matches = url.match(/\/song\/([^\/]+)\/([^\/]+)/);
+    if (!matches) {
+      return url;
+    }
+    
+    const [, songName, id] = matches;
+    // Transform to lyrics URL format
+    return `https://www.jiosaavn.com/lyrics/${songName}-lyrics/${id}`;
+  } catch (error) {
+    console.error('Error transforming URL:', error.message);
+    return url;
+  }
+}
+
+/**
+ * Extracts lyrics from window.__INITIAL_DATA__ JSON
+ * @param {string} scriptContent - The script content containing window.__INITIAL_DATA__
+ * @returns {string|null} - The extracted lyrics or null if not found
+ */
+function extractLyricsFromInitialData(scriptContent) {
+  try {
+    // Extract the JSON part from window.__INITIAL_DATA__ = {...}
+    // The script tag has a comment before the JSON data
+    const jsonMatch = scriptContent.match(/window\.__INITIAL_DATA__\s*=\s*({[\s\S]*?});(?:\s*<\/script>)?/);
+    if (!jsonMatch || !jsonMatch[1]) {
+      console.log('No JSON match found in script content');
+      return null;
+    }
+
+    let jsonData;
+    try {
+      // First try standard JSON parsing
+      jsonData = JSON.parse(jsonMatch[1]);
+    } catch (e) {
+      console.log('Standard JSON parsing failed, trying cleanup');
+      // Try to clean up the JSON string if standard parsing fails
+      try {
+        // Replace problematic patterns in the JSON string
+        const cleanedJson = jsonMatch[1]
+          .replace(/new Date\([^)]*\)/g, '"date-placeholder"')
+          .replace(/undefined/g, 'null')
+          .replace(/\\(?!["\\/bfnrt])/g, '\\\\'); // Fix invalid escapes
+        jsonData = JSON.parse(cleanedJson);
+      } catch (innerError) {
+        console.error('Failed to parse JSON even after cleanup:', innerError.message);
+        return null;
+      }
+    }
+    
+    // Debug: Log the structure of the song object
+    if (jsonData.song) {
+      console.log('Song data found, checking for lyrics');
+      if (jsonData.song.song && jsonData.song.song.has_lyrics) {
+        console.log('Song has_lyrics flag is true');
+      }
+    }
+    
+    // Check multiple possible paths for lyrics
+    
+    // Path 1: Direct lyrics content in song.song.lyrics.content (lyrics page format)
+    if (jsonData.song?.song?.has_lyrics === true && jsonData.song?.song?.lyrics?.content) {
+      console.log('Found lyrics in song.song.lyrics.content');
+      return jsonData.song.song.lyrics.content.replace(/\\n/g, '\n').trim();
+    }
+    
+    // Path 2: Alternative format for song page
+    if (jsonData.song?.status === 'fulfilled' && jsonData.song?.song?.lyrics?.content) {
+      console.log('Found lyrics in song.song.lyrics.content (fulfilled)');
+      return jsonData.song.song.lyrics.content.replace(/\\n/g, '\n').trim();
+    }
+    
+    // Path 3: Check if lyrics are directly in song.lyrics
+    if (jsonData.song?.lyrics?.content) {
+      console.log('Found lyrics in song.lyrics.content');
+      return jsonData.song.lyrics.content.replace(/\\n/g, '\n').trim();
+    }
+    
+    // Path 4: Check if lyrics are in song.song object directly
+    if (jsonData.song?.song?.lyrics) {
+      console.log('Found lyrics in song.song.lyrics');
+      return jsonData.song.song.lyrics.replace(/\\n/g, '\n').trim();
+    }
+    
+    // Log the structure to help with debugging
+    if (jsonData.song) {
+      console.log('Song data found but no lyrics in expected paths');
+      if (jsonData.song.song && jsonData.song.song.has_lyrics) {
+        console.log('Song has lyrics flag is true, but content not found in expected location');
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting lyrics from JSON:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Scrapes lyrics from a JioSaavan page
+ * @param {string} url - The JioSaavan URL (song or lyrics)
+ * @param {boolean} triedLyricsUrl - Whether we've already tried the lyrics URL
+ * @param {number} fallbackCount - Counter to prevent infinite recursion
+ * @returns {Promise<string|null>} - The lyrics as a string or null if not found
+ */
+async function scrapeLyricsFromJioSaavan(url, triedLyricsUrl = false, fallbackCount = 0) {
+  if (!url) {
+    console.error('No URL provided to JioSaavan scraper');
+    return null;
+  }
+
+  // Prevent infinite recursion
+  if (fallbackCount > 1) {
+    console.error('Too many fallback attempts for JioSaavn scraper');
+    return null;
+  }
+
+  try {
+    // If we haven't tried the lyrics URL yet, transform and try it
+    const urlToFetch = !triedLyricsUrl ? transformToLyricsUrl(url) : url;
+    console.log('Fetching lyrics from:', urlToFetch);
+    
+    const response = await axios.get(urlToFetch, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+
+    if (!response.data) {
+      console.error('Failed to fetch page');
+      return null;
+    }
+
+    const $ = cheerio.load(response.data);
+    let lyrics = null;
+
+    // Method 1: Check for lyrics in window.__INITIAL_DATA__
+    const scripts = $('script').filter((i, el) => $(el).text().includes('window.__INITIAL_DATA__'));
+    if (scripts.length) {
+      console.log('Found window.__INITIAL_DATA__ script');
+      const scriptContent = scripts.first().text();
+      lyrics = extractLyricsFromInitialData(scriptContent);
+      
+      if (lyrics) {
+        console.log('Found lyrics in window.__INITIAL_DATA__');
+        return lyrics.trim();
+      } else {
+        console.log('No lyrics found in window.__INITIAL_DATA__');
+      }
+    } else {
+      console.log('No window.__INITIAL_DATA__ script found');
+    }
+
+    // Method 2: Check for lyrics in specific divs (fallback)
+    if (!lyrics) {
+      console.log('Checking for lyrics in HTML elements');
+      const lyricsDivs = [
+        '.lyrics-container',
+        '.lyrics_text',
+        '#lyrics-root',
+        '[data-lyrics]',
+        '.u-disable-select > p',
+        '.u-disable-select',
+        '.lyrics'
+      ];
+      
+      for (const selector of lyricsDivs) {
+        const element = $(selector);
+        if (element.length) {
+          // Get text content and clean it up
+          lyrics = element.text().trim();
+          if (lyrics && lyrics.length > 0) {
+            console.log(`Found lyrics in ${selector}`);
+            
+            // Clean up the lyrics
+            lyrics = lyrics
+              .replace(/\\n/g, '\n')
+              .replace(/\\"/g, '"')
+              .replace(/\\t/g, '  ')
+              .replace(/\\r/g, '')
+              .replace(/\s+/g, ' ') // Normalize whitespace
+              .trim();
+
+            // Remove common navigation/UI text
+            lyrics = lyrics
+              .replace(/What's Hot on JioSaavn.*?New Releases/g, '')
+              .replace(/Top Playlists.*?Top Artists/g, '')
+              .replace(/Podcasts.*?Search/g, '')
+              .replace(/FAQs for.*$/s, '')
+              .replace(/Loading.*?Footer/g, '')
+              .replace(/Browse.*?Library/g, '')
+              .replace(/History.*?Queue/g, '')
+              .replace(/Lyrics powered by JioSaavn$/i, '')
+              .trim();
+            
+            // Only return if we have meaningful content
+            if (lyrics.length > 0 && !isPromotionalContent(lyrics)) {
+              console.log('Lyrics successfully found via HTML scraping');
+              return lyrics;
+            }
+          }
+        }
+      }
+    }
+
+    // If we've tried the lyrics URL but not the song URL, try the song URL
+    if (!lyrics && triedLyricsUrl && urlToFetch.includes('/lyrics/')) {
+      const songUrl = urlToFetch.replace('/lyrics/', '/song/').replace('-lyrics', '');
+      console.log('No lyrics found on lyrics page, trying song URL:', songUrl);
+      return scrapeLyricsFromJioSaavan(songUrl, true, fallbackCount + 1);
+    }
+
+    // If we've tried both URLs and still no lyrics, give up
+    if (!lyrics) {
+      console.log('No lyrics found on JioSaavn');
+      return null;
+    }
+
+    return lyrics;
+
+  } catch (error) {
+    console.error('Error scraping JioSaavn lyrics:', error.message);
+    
+    // If we haven't tried the song URL yet, try it as a fallback
+    if (!triedLyricsUrl && url.includes('/song/')) {
+      console.log('Error with lyrics URL, trying song URL as fallback...');
+      return scrapeLyricsFromJioSaavan(url, true, fallbackCount + 1);
+    }
+    
+    return null;
+  }
+}
+
+// Helper function to check if text is promotional content
+function isPromotionalContent(text) {
+  if (!text) return true;
+  
+  const promoIndicators = [
+    'advertisement',
+    'sponsored',
+    'premium',
+    'subscribe',
+    'download app'
+  ];
+  
+  const lowerText = text.toLowerCase();
+  return promoIndicators.some(indicator => lowerText.includes(indicator));
+}
+
+module.exports = {
+  scrapeLyricsFromJioSaavan
+};
