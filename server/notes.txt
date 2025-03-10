@@ -1,0 +1,109 @@
+better to add singer name in search query and without channel name
+
+
+{
+    "success": true,
+    "results": [
+        {
+            "source": "JioSaavn",
+            "metadata": {
+                "url": "https://www.jiosaavn.com/song/angreji-beat/MR4TeR59ewQ",
+                "title": "Angreji Beat",
+                "artist": "Yo Yo Honey Singh",
+                "album": "International Villager",
+                "year": "2011",
+                "imageUrl": "https://c.saavncdn.com/blob/924/International-Villager-Punjabi-2011-20220722144441-150x150.jpg",
+                "releaseDate": "2011-11-11",
+                "songId": "AvxHjML7",
+                "hasLyrics": true,
+                "source": "JioSaavn"
+            },
+            "url": "https://www.jiosaavn.com/song/angreji-beat/MR4TeR59ewQ",
+            "lyrics": "Ah Haa\nYo Yo Honey Singh\nGippy!\n\nMundeyan Nu Chadhdi Thaari i Beat Te\nAngrezi Beat Te\n\nAh Haa\nYo Yo Honey Singh\nGippy!",
+            "hasLyrics": true
+        }
+    ]
+}
+
+
+{
+    "success": true,
+    "results": [
+        {
+            "source": "Genius",
+            "metadata": {
+                "url": "https://genius.com/Eminem-the-real-slim-shady-lyrics",
+                "title": "The Real Slim Shady",
+                "artist": "Eminem",
+                "artistNames": "Eminem",
+                "releaseDate": "April 18, 2000",
+                "imageUrl": "https://images.genius.com/8f4b55841334eb46fe1b93515abc64db.1000x1000x1.png",
+                "language": null,
+                "source": "Genius",
+                "fullTitle": "The Real Slim Shady by Eminem",
+                "titleWithFeatured": "The Real Slim Shady",
+                "stats": {
+                    "pageviews": 8230543,
+                    "hot": false
+                }
+            },
+            "url": "https://genius.com/Eminem-the-real-slim-shady-lyrics",
+            "lyrics": "May I have your attention, please?\nMay I have your attention, Shady in all of us\nFuck it, let's all stand up",
+            "hasLyrics": true
+        },
+        {
+            "source": "Genius",
+            "metadata": {
+                "url": "https://genius.com/Kid-cudi-and-eminem-the-adventures-of-moon-man-and-slim-shady-lyrics",
+                "title": "The Adventures of Moon Man & Slim Shady",
+                "artist": "Kid Cudi",
+                "artistNames": "Kid Cudi & Eminem",
+                "releaseDate": "July 10, 2020",
+                "imageUrl": "https://images.genius.com/874efb37582bf6b64af1c360ccbe8659.1000x1000x1.jpg",
+                "language": null,
+                "source": "Genius",
+                "fullTitle": "The Adventures of Moon Man & Slim Shady by Kid Cudi & Eminem",
+                "titleWithFeatured": "The Adventures of Moon Man & Slim Shady",
+                "stats": {
+                    "pageviews": 766215,
+                    "hot": false
+                }
+            },
+            "url": "https://genius.com/Kid-cudi-and-eminem-the-adventures-of-moon-man-and-slim-shady-lyrics",
+            "lyrics": "[Intro: Kid Cudi]\nYep (Aww)\nYep (Mmm-aww)\nUh-huh\nYeah, nigga\n[Verse 1: Kid Cudi]\nYeah, it's been a minute, but I'm back in it (Uh)\nY'all \nRap God (Uh)\nRager",
+            "hasLyrics": true
+        },
+        {
+            "source": "Genius",
+            "metadata": {
+                "url": "https://genius.com/Eminem-eminem-freestyles-on-tim-westwood-2009-lyrics",
+                "title": "Eminem Freestyles on Tim Westwood | 2009",
+                "artist": "Eminem",
+                "artistNames": "Eminem (Ft. Denaun)",
+                "releaseDate": "May 27, 2009",
+                "imageUrl": "https://images.genius.com/c9581c061b63416187e049cdfe57efc6.500x500x1.jpg",
+                "language": null,
+                "source": "Genius",
+                "fullTitle": "Eminem Freestyles on Tim Westwood | 2009 by Eminem (Ft. Denaun)",
+                "titleWithFeatured": "Eminem Freestyles on Tim Westwood | 2009 (Ft. Denaun)",
+                "stats": {
+                    "pageviews": 445875,
+                    "hot": false
+                }
+            },
+            "url": "https://genius.com/Eminem-eminem-freestyles-on-tim-westwood-2009-lyrics",
+            "lyrics": "[Prelude: Eminem, Mr. Porter &amp; Tim Westwood]\nYo blast me off, , he glares, makin' the hairs\nAll on the back of yo' neck stand like Dracula, yep\nSpectacular rep, he's a tarantula, gargantuan\nYeah, Angela, so I command you to start dancin'\nPart Manson, part Hannibal, part mechanical shark\nThrowin' animal parts at Scarlett Johansson\nEnter my gas chamber, you're gangsta my ass\nHe's got his fangs to your neck, he's set to strangle ya ass, hater\nYou're facin' a task greater, he's chasin' your ass\nHe's got his face in a mask, your bloodstains on his glass table\n[Verse 6: Mr. Porter]\nI'm so listening, baby",
+            "hasLyrics": true
+        }
+    ]
+}
+
+
+tests:
+Porcupine Tree - Anesthetize
+Imagine Dragons - Wrecked (Official Music Video)
+'Anaadi' (Official Music Video) | Seedhe Maut x Sez on the Beat | Nayaab
+KODAK | King & ‪@SeedheMaut‬ | MM | Official Music Video
+
+
+J. Cole - She Knows (Explicit Video) ft. Amber Coffman, Cults

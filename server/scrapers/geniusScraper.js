@@ -9,7 +9,7 @@ const cheerio = require('cheerio');
 async function scrapeLyricsFromGenius(url) {
   if (!url) {
     console.error('No URL provided to Genius scraper');
-    return null;
+    throw new Error("No URL provided to Genius scraper");
   }
 
   try {
@@ -90,10 +90,10 @@ async function scrapeLyricsFromGenius(url) {
     }
     
     console.error('No lyrics found on Genius page');
-    return null;
+    throw new Error("No lyrics found on Genius page");
   } catch (error) {
     console.error(`Error scraping lyrics from Genius: ${error.message}`);
-    return null;
+    throw new Error("Error scraping lyrics from Genius");
   }
 }
 

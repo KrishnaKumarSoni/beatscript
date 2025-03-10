@@ -10,7 +10,7 @@ async function getURLJioSaavnAPI(searchString) {
   try {
     if (!searchString) {
       console.error('Missing required parameter: searchString');
-      return null;
+      throw new Error('Missing required parameter: searchString');
     }
     
     // Step 1: Search for the song using JioSaavn's search API
@@ -113,10 +113,10 @@ async function getURLJioSaavnAPI(searchString) {
     }
     
     // No results found
-    return null;
+    throw new Error('No results found in JioSaavn API search');
   } catch (error) {
     console.error('Error in JioSaavn API search:', error.message);
-    return null;
+    throw new Error('Error in JioSaavn API search:', error.message);
   }
 }
 

@@ -18,13 +18,13 @@ function debug(...args) {
 async function scrapeLyricsFromJioSaavn(songData) {
   if (!songData || !songData.songId) {
     console.error('No song ID provided to JioSaavn scraper');
-    return null;
+      throw new Error("No song ID provided to JioSaavn scraper");
   }
 
   // If we already know the song doesn't have lyrics, don't even try
   if (songData.hasLyrics === false) {
     console.log(`Song ${songData.songId} is known not to have lyrics in JioSaavn`);
-    return null;
+    throw new Error("Song is known not to have lyrics in JioSaavn");
   }
 
   try {
@@ -43,13 +43,13 @@ async function scrapeLyricsFromJioSaavn(songData) {
     // Check if the response indicates a failure
     if (response.data && response.data.status === 'failure') {
       console.log(`JioSaavn API returned failure: ${response.data.error?.msg || 'Unknown error'}`);
-      return null;
+      throw new Error("JioSaavn API returned failure");
     }
 
     // Check if lyrics exist in the response
     if (!response.data || !response.data.lyrics) {
       console.log('No lyrics found in JioSaavn API response');
-      return null;
+      throw new Error("No lyrics found in JioSaavn API response");
     }
 
     // Clean up the lyrics - replace <br> tags with newlines
@@ -64,7 +64,7 @@ async function scrapeLyricsFromJioSaavn(songData) {
     return lyrics;
   } catch (error) {
     console.error('Error scraping JioSaavn lyrics:', error.message);
-    return null;
+    throw new Error("Error scraping JioSaavn lyrics");
   }
 }
 
@@ -76,7 +76,7 @@ async function scrapeLyricsFromJioSaavn(songData) {
 async function searchJioSaavn(query) {
   if (!query) {
     debug('Empty query provided to JioSaavn search');
-    return [];
+    throw new Error("Empty query provided to JioSaavn search");
   }
 
   debug('Searching JioSaavn for:', query);
@@ -101,7 +101,7 @@ async function searchJioSaavn(query) {
     if (!response.data || typeof response.data !== 'string') {
       // console.log('JioSaavn search failed: Invalid response format');
       debug('JioSaavn search failed: Invalid response format');
-      return [];
+      throw new Error("JioSaavn search failed: Invalid response format");
     }
     
     // Parse the response (JioSaavn returns a string that needs to be parsed)
@@ -111,7 +111,7 @@ async function searchJioSaavn(query) {
     if (!jsonData.songs || !jsonData.songs.data || !Array.isArray(jsonData.songs.data)) {
       // console.log('JioSaavn search: No songs found in response');
       debug('JioSaavn search: No songs found in response');
-      return [];
+      throw new Error("JioSaavn search: No songs found in response");
     }
     
     // Extract song data
@@ -132,14 +132,14 @@ async function searchJioSaavn(query) {
           // Get song details
           const songDetails = await getSongDetails(id, token);
           if (!songDetails) {
-            return null;
+            throw new Error("JioSaavn: No song details found");
           }
           
           return songDetails;
         } catch (error) {
           // console.log(`JioSaavn: Error processing song ${song.title}:`, error.message);
           debug(`Error processing song ${song.title}:`, error.message);
-          return null;
+          throw new Error("JioSaavn: Error processing song");
         }
       })
     );
@@ -151,7 +151,7 @@ async function searchJioSaavn(query) {
     
   } catch (error) {
     console.log('JioSaavn search error:', error.message);
-    return [];
+    throw new Error("JioSaavn search error");
   }
 }
 
@@ -164,7 +164,7 @@ async function searchJioSaavn(query) {
 async function getSongDetails(id, token) {
   if (!id || !token) {
     // console.log('JioSaavn: Missing song ID or token');
-    return null;
+    throw new Error("JioSaavn: Missing song ID or token");
   }
   
   try {
@@ -183,13 +183,13 @@ async function getSongDetails(id, token) {
     // Parse song details
     if (!songResponse.data || typeof songResponse.data !== 'string') {
       // console.log('JioSaavn: Invalid song details response');
-      return null;
+      throw new Error("JioSaavn: Invalid song details response");
     }
     
     const songData = JSON.parse(songResponse.data);
     if (!songData[id]) {
       // console.log('JioSaavn: Song details not found');
-      return null;
+      throw new Error("JioSaavn: Song details not found");
     }
     
     const song = songData[id];
@@ -242,7 +242,7 @@ async function getSongDetails(id, token) {
   } catch (error) {
     // console.log('JioSaavn: Error getting song details:', error.message);
     debug('Error getting song details:', error.message);
-    return null;
+    throw new Error("JioSaavn: Error getting song details");
   }
 }
 

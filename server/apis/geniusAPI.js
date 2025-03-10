@@ -1,5 +1,6 @@
 const axios = require('axios');
-
+// const { config } = require('dotenv');
+const config = require('../config');
 /**
  * Gets the Genius song URLs and metadata for a given search string using the official Genius API
  * Returns top 3 most relevant results for better matching
@@ -8,16 +9,20 @@ const axios = require('axios');
  * @param {string} accessToken - Genius API access token
  * @returns {Promise<Array<Object>>} Array of objects containing song URLs and metadata (empty array if not found)
  */
-async function getURLGeniusAPI(searchString, accessToken) {
+async function getURLGeniusAPI(searchString) {
+  accessToken = config.genius.accessToken;
+  console.log("searchString from geniusAPI",searchString);
+  
   if (!searchString || !accessToken) {
     console.error('Missing required parameters: searchString or accessToken');
-    return [];
+    throw new Error('Missing required parameters: searchString or accessToken');
   }
   
   try {
     // Use the official Genius API search endpoint
     const searchUrl = `https://api.genius.com/search?q=${encodeURIComponent(searchString)}`;
     
+    console.log("search url",searchUrl)
     const response = await axios.get(searchUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`
@@ -58,14 +63,14 @@ async function getURLGeniusAPI(searchString, accessToken) {
     }
     
     // Return empty array instead of null when no results are found
-    return [];
+    throw new Error('No results found in Genius API search');
   } catch (error) {
     console.error('Error in Genius API search:', error.message);
     // Return empty array instead of null on error
-    return [];
+    throw new Error('Error in Genius API search:', error.message);
   }
 }
-
+// console.log(getURLGeniusAPI("tum hi ho"));
 module.exports = {
   getURLGeniusAPI
 }; 
