@@ -162,8 +162,7 @@ async function fetchLyrics() {
     if (!isYouTubeVideoPage()) {
       content.innerHTML = `
         <div class="error">
-          <div class="error-icon">⚠️</div>
-          <div class="error-message">This extension only works on YouTube video pages.</div>
+          This extension only works on YouTube video pages.
         </div>`;
       return;
     }
@@ -171,9 +170,7 @@ async function fetchLyrics() {
     // Show loading state
     content.innerHTML = `
       <div class="loading">
-        <div class="loading-text">Finding lyrics</div>
-        <div class="loading-dots"><span>.</span><span>.</span><span>.</span></div>
-        <div class="loading-music-note">♪</div>
+        <div class="loading-text">Finding lyrics...</div>
       </div>`;
     
     // Get the current video ID to ensure we're fetching for the right video
@@ -199,8 +196,7 @@ async function fetchLyrics() {
     if (!title) {
       content.innerHTML = `
         <div class="error">
-          <div class="error-icon">⚠️</div>
-          <div class="error-message">Could not extract video title</div>
+          Could not extract video title
         </div>`;
       return;
     }
@@ -242,17 +238,13 @@ async function fetchLyrics() {
     } else {
       content.innerHTML = `
         <div class="error">
-          <div class="error-icon">🎵</div>
-          <div class="error-message">No lyrics found for "${title}"</div>
-          <div class="error-details">Try with a different song or check if this is a music video.</div>
+          No lyrics found for "${title}"
         </div>`;
     }
   } catch (error) {
     content.innerHTML = `
       <div class="error">
-        <div class="error-icon">❌</div>
-        <div class="error-message">Error fetching lyrics</div>
-        <div class="error-details">${error.message}</div>
+        Error fetching lyrics: ${error.message}
       </div>`;
     console.error('Error fetching lyrics:', error);
   }
@@ -374,7 +366,7 @@ function displayLyrics(result) {
     // Get release date if available
     const releaseDate = result.metadata && result.metadata.releaseDate ? result.metadata.releaseDate : '';
     
-    // Create HTML for the lyrics display with enhanced UI
+    // Create HTML for the lyrics display with simplified UI
     const lyricsHTML = `
       <div class="lyrics-container">
         <div class="song-info">
@@ -392,21 +384,6 @@ function displayLyrics(result) {
     `;
     
     content.innerHTML = lyricsHTML;
-    
-    // Add a subtle animation to the lyrics
-    setTimeout(() => {
-      const lyricsParagraphs = document.querySelectorAll('.lyrics-content p');
-      lyricsParagraphs.forEach((p, index) => {
-        p.style.opacity = '0';
-        p.style.transform = 'translateY(20px)';
-        p.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-        
-        setTimeout(() => {
-          p.style.opacity = '1';
-          p.style.transform = 'translateY(0)';
-        }, 100 + (index * 50));
-      });
-    }, 300);
     
   } catch (error) {
     console.error('Error displaying lyrics:', error);
@@ -559,12 +536,12 @@ lyricsStyles.textContent = `
     right: -100%;
     width: 400px;
     height: 100vh;
-    background: linear-gradient(to bottom, #4a90e2, #357abd);
-    transition: right 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(135deg, #111111, #222222, #333333);
+    transition: right 0.3s ease;
     z-index: 10000;
-    border-radius: 12px 0 0 12px;
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
     box-sizing: border-box;
+    font-family: Arial, sans-serif;
   }
 
   .right-drawer.open {
@@ -577,11 +554,10 @@ lyricsStyles.textContent = `
     top: 50%;
     transform: translateY(-50%);
     height: 100px;
-    width: 8px;
+    width: 6px;
     cursor: ew-resize;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px 0 0 12px;
-    transition: background 0.3s ease;
+    border-radius: 3px 0 0 3px;
   }
 
   .drawer-handle:hover {
@@ -590,12 +566,12 @@ lyricsStyles.textContent = `
 
   .close-button {
     position: absolute;
-    top: 35px;
+    top: 15px;
     right: 15px;
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
     border: none;
     color: white;
     cursor: pointer;
@@ -603,22 +579,20 @@ lyricsStyles.textContent = `
     align-items: center;
     justify-content: center;
     font-size: 20px;
-    transition: background 0.3s ease, transform 0.3s ease;
   }
 
   .close-button:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .drawer-content {
-    padding: 80px 25px 20px 25px;
+    padding: 50px 20px 20px 20px;
     color: white;
     font-family: Arial, sans-serif;
     height: 100%;
     overflow-y: auto;
     opacity: 0;
-    transition: opacity 0.4s ease;
+    transition: opacity 0.3s ease;
     box-sizing: border-box;
   }
 
@@ -630,32 +604,37 @@ lyricsStyles.textContent = `
     display: flex;
     flex-direction: column;
     height: auto;
-    min-height: calc(100% - 80px);
+    min-height: calc(100% - 50px);
   }
   
   .song-info {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    padding-bottom: 20px;
+    padding-bottom: 15px;
   }
   
   .song-title {
-    font-size: 24px;
+    font-size: 22px;
     margin: 0 0 10px 0;
     font-weight: 700;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
   
   .song-artist {
-    font-size: 18px;
-    margin: 0 0 10px 0;
+    font-size: 16px;
+    margin: 0 0 5px 0;
     font-weight: 400;
-    opacity: 0.9;
+    opacity: 0.8;
+  }
+  
+  .release-date {
+    font-size: 14px;
+    margin-top: 5px;
+    opacity: 0.7;
   }
   
   .lyrics-content {
     flex: 1;
-    line-height: 1.6;
+    line-height: 1.5;
     padding-right: 5px;
     overflow-y: visible;
   }

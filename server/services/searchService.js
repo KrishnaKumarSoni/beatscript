@@ -236,46 +236,6 @@ function removeRepeatingPhrases(text) {
   return words.filter(word => word !== null).join(' ');
 }
 
-// Exhaustive list of filler words commonly found in YouTube titles
-const FILLER_WORDS = [
-  // Video quality and format indicators
-  'official', 'music', 'video', 'audio', 'lyrics', 'lyric', 'visualizer', 'hd', '4k', '720p', '1080p', '8k', 'uhd',
-  
-  // Release types
-  'single', 'album', 'ep', 'release', 'premiere', 'debut', 'teaser', 'trailer',
-  
-  // Video types
-  'mv', 'music video', 'official video', 'official audio', 'official music video', 'official lyric video',
-  'lyric video', 'lyrics video', 'performance', 'live', 'acoustic', 'session', 'studio',
-  
-  // Remaster/version indicators
-  'remaster', 'remastered', 'remix', 'cover', 'version', 'edit', 'extended', 'radio edit', 'radio', 'clean',
-  'explicit', 'instrumental', 'karaoke', 'acapella', 'unplugged', 'stripped', 'demo',
-  
-  // Featuring indicators (keeping 'feat' and 'ft' as they're important)
-  'featuring', 'collab', 'collaboration', 'with',
-  
-  // Promotional terms
-  'exclusive', 'new', 'free', 'promo', 'promotional', 'sponsored',
-  
-  // Channels and platforms
-  'vevo', 'topic', 'channel', 'records', 'recording', 'productions', 'entertainment',
-  
-  // Languages and subtitles
-  'subtitles', 'sub', 'subs', 'cc', 'closed caption', 'closed captions', 'english', 'spanish', 'french',
-  
-  // Year indicators
-  '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016', '2015',
-  
-  // Special characters often used as separators
-  '|', '-', ':', '•', '·', '★', '☆', '♪', '♫',
-  
-  // Other common filler terms
-  'full', 'complete', 'high quality', 'hq', 'best quality', 'original', 'prod', 'produced by',
-  'directed by', 'dir', 'director', 'prod by', 'beat by', 'beats by', 'soundtrack', 'ost',
-  'theme', 'from', 'for', 'presents', 'present'
-];
-
 /**
  * Helper function to clean text by removing common filler words and special characters
  * @param {string} text - Text to clean
@@ -284,31 +244,19 @@ const FILLER_WORDS = [
 function cleanText(text) {
   if (!text) return '';
   
-  // First, remove content in parentheses that contains common filler words
-  let cleanedText = text
-    .replace(/\((?:official|music|video|audio|lyrics|lyric|visualizer|hd|4k).*?\)/gi, '')
-    .replace(/\[(?:official|music|video|audio|lyrics|lyric|visualizer|hd|4k).*?\]/gi, '');
-  
-  // Split the text into words
-  let words = cleanedText.split(/\s+/);
-  
-  // Filter out filler words (case-insensitive)
-  words = words.filter(word => {
-    const lowerWord = word.toLowerCase();
-    return !FILLER_WORDS.some(filler => lowerWord === filler.toLowerCase());
-  });
-  
-  // Join the words back together
-  cleanedText = words.join(' ');
-  
-  // Replace special characters with spaces, but preserve non-Latin characters
-  cleanedText = cleanedText
+  return text
+    // Remove all content inside square brackets, regardless of content
+    .replace(/\[.*?\]/gi, '')
+    // Remove content in parentheses that contains common filler words
+    .replace(/\((?:official|music|video|audio|lyrics|remaster|lyric|visualizer|hd|4k).*?\)/gi, '')
+    // Remove common filler words
+    .replace(/\b(official|music|video|audio|lyrics|remaster|lyric|visualizer|hd|4k|720p|1080p)\b/gi, '')
+    // Keep "feat" and "ft" as they're important for search
+    // Replace special characters with spaces, but preserve non-Latin characters
     .replace(/[^\w\s\u0900-\u097F\u0600-\u06FF\u0400-\u04FF\u3000-\u9FFF]/gi, ' ')
     // Replace multiple spaces with a single space
     .replace(/\s+/g, ' ')
     .trim();
-  
-  return cleanedText;
 }
 
 module.exports = {
