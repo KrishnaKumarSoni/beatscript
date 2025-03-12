@@ -33,7 +33,9 @@ const formPrompt = (originalQuery, metadata) => {
     You are a music metadata validation system. Your task is to determine if the provided metadata matches the search query, ensure that the script (Roman , Devnagri etc) of the search should be same as the metadata.
 
     Search Query: "${originalQuery}"
-    Metadata: ${titleLine}
+    Metadata:
+    ${titleLine}
+    ${artistLine}
 
     Analyze the search query and metadata to determine:
     1. "confidence": a score from 0-100 indicating how confident you are that the metadata matches the search query
@@ -42,6 +44,8 @@ const formPrompt = (originalQuery, metadata) => {
     {
       "confidence": 85
     }
+    
+    Ensure language of the search query and metadata are same. Else return 0 confidence.
   `;
   
   

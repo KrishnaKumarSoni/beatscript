@@ -1,0 +1,159 @@
+.right-drawer {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 400px;
+  height: 100vh;
+  background: linear-gradient(to bottom, #4a90e2, #357abd);
+  transition: right 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10000;
+  border-radius: 12px 0 0 12px;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.right-drawer.open {
+  right: 0;
+}
+
+.drawer-handle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 100px;
+  width: 8px;
+  cursor: ew-resize;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px 0 0 12px;
+  transition: background 0.3s ease;
+}
+
+.drawer-handle:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  left: 28px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.drawer-content {
+  padding: 20px;
+  color: white;
+  font-family: Arial, sans-serif;
+  height: 100%;
+  overflow-y: auto;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  box-sizing: border-box;
+}
+
+.right-drawer.open .drawer-content {
+  opacity: 1;
+}
+
+/* Prevent text selection while dragging */
+.dragging {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Lyrics display styles */
+.lyrics-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 40px);
+  padding: 10px 0;
+}
+
+.song-info {
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 15px;
+}
+
+.song-title {
+  font-size: 24px;
+  margin: 0 0 5px 0;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.song-artist {
+  font-size: 18px;
+  margin: 0 0 10px 0;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.source-info {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 8px;
+}
+
+.lyrics-content {
+  flex: 1;
+  overflow-y: auto;
+  line-height: 1.6;
+  padding-right: 10px;
+  font-size: 16px;
+}
+
+.lyrics-content p {
+  margin: 0 0 8px 0;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  font-size: 18px;
+  opacity: 0.8;
+}
+
+.loading::after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  margin-left: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  color: #ff6b6b;
+  padding: 20px;
+  text-align: center;
+  font-size: 16px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  margin-top: 20px;
+} 
