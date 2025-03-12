@@ -9,216 +9,60 @@ const closeButton = document.createElement('button');
 closeButton.className = 'close-button';
 closeButton.innerHTML = '×';
 
-// Add theme selector
-const themeSelector = document.createElement('div');
-themeSelector.className = 'theme-selector';
-
-const themes = [
-  { name: 'purple', class: 'theme-purple' },
-  { name: 'dark', class: 'theme-dark' },
-  { name: 'ocean', class: 'theme-ocean' },
-  { name: 'sunset', class: 'theme-sunset' }
-];
-
-themes.forEach(theme => {
-  const themeOption = document.createElement('div');
-  themeOption.className = `theme-option ${theme.class}`;
-  themeOption.dataset.theme = theme.name;
-  themeOption.title = `${theme.name.charAt(0).toUpperCase() + theme.name.slice(1)} theme`;
-  
-  if (theme.name === 'purple') {
-    themeOption.classList.add('active');
-  }
-  
-  themeOption.addEventListener('click', () => {
-    // Remove active class from all options
-    document.querySelectorAll('.theme-option').forEach(option => {
-      option.classList.remove('active');
-    });
-    
-    // Add active class to clicked option
-    themeOption.classList.add('active');
-    
-    // Apply theme
-    applyTheme(theme.name);
-  });
-  
-  themeSelector.appendChild(themeOption);
-});
-
-// Add font size controls
+// Create font size control
 const fontSizeControl = document.createElement('div');
 fontSizeControl.className = 'font-size-control';
 
-const decreaseBtn = document.createElement('button');
-decreaseBtn.className = 'font-size-btn';
-decreaseBtn.innerHTML = 'A-';
-decreaseBtn.title = 'Decrease font size';
-decreaseBtn.addEventListener('click', () => adjustFontSize(-1));
+const decreaseFontBtn = document.createElement('button');
+decreaseFontBtn.className = 'font-size-btn';
+decreaseFontBtn.innerHTML = 'A-';
+decreaseFontBtn.title = 'Decrease font size';
 
-const increaseBtn = document.createElement('button');
-increaseBtn.className = 'font-size-btn';
-increaseBtn.innerHTML = 'A+';
-increaseBtn.title = 'Increase font size';
-increaseBtn.addEventListener('click', () => adjustFontSize(1));
+const increaseFontBtn = document.createElement('button');
+increaseFontBtn.className = 'font-size-btn';
+increaseFontBtn.innerHTML = 'A+';
+increaseFontBtn.title = 'Increase font size';
 
-fontSizeControl.appendChild(decreaseBtn);
-fontSizeControl.appendChild(increaseBtn);
+fontSizeControl.appendChild(decreaseFontBtn);
+fontSizeControl.appendChild(increaseFontBtn);
 
 const content = document.createElement('div');
 content.className = 'drawer-content';
 
 drawer.appendChild(handle);
 drawer.appendChild(closeButton);
-drawer.appendChild(themeSelector);
 drawer.appendChild(fontSizeControl);
 drawer.appendChild(content);
 document.body.appendChild(drawer);
 
-// Store the current URL for change detection
-let currentUrl = window.location.href;
+// Font size control functionality
+let currentFontSize = 14; // Default font size
+const MIN_FONT_SIZE = 10;
+const MAX_FONT_SIZE = 24;
 
-// Store current font size
-let currentFontSize = 16; // Default font size
+decreaseFontBtn.addEventListener('click', () => {
+  if (currentFontSize > MIN_FONT_SIZE) {
+    currentFontSize -= 2;
+    updateFontSize();
+  }
+});
 
-// Function to adjust font size
-function adjustFontSize(change) {
-  currentFontSize = Math.max(12, Math.min(24, currentFontSize + change));
-  
-  // Apply new font size to lyrics content
+increaseFontBtn.addEventListener('click', () => {
+  if (currentFontSize < MAX_FONT_SIZE) {
+    currentFontSize += 2;
+    updateFontSize();
+  }
+});
+
+function updateFontSize() {
   const lyricsContent = document.querySelector('.lyrics-content');
   if (lyricsContent) {
     lyricsContent.style.fontSize = `${currentFontSize}px`;
   }
-  
-  // Store preference in localStorage
-  try {
-    localStorage.setItem('beatscript_font_size', currentFontSize);
-  } catch (e) {
-    console.error('Could not save font size preference:', e);
-  }
 }
 
-// Function to apply theme
-function applyTheme(themeName) {
-  // Remove all theme classes
-  drawer.classList.remove('theme-purple-active', 'theme-dark-active', 'theme-ocean-active', 'theme-sunset-active');
-  
-  // Add the selected theme class
-  drawer.classList.add(`theme-${themeName}-active`);
-  
-  // Apply theme colors
-  let primaryColor, secondaryColor, bgGradient;
-  
-  switch(themeName) {
-    case 'purple':
-      primaryColor = '#8a2be2';
-      secondaryColor = '#a29bfe';
-      bgGradient = 'linear-gradient(135deg, #0f0c29, #302b63)';
-      break;
-    case 'dark':
-      primaryColor = '#777777';
-      secondaryColor = '#aaaaaa';
-      bgGradient = 'linear-gradient(135deg, #111111, #333333)';
-      break;
-    case 'ocean':
-      primaryColor = '#26d0ce';
-      secondaryColor = '#1a2980';
-      bgGradient = 'linear-gradient(135deg, #1a2980, #26d0ce)';
-      break;
-    case 'sunset':
-      primaryColor = '#ff416c';
-      secondaryColor = '#ff4b2b';
-      bgGradient = 'linear-gradient(135deg, #ff416c, #ff4b2b)';
-      break;
-    default:
-      primaryColor = '#8a2be2';
-      secondaryColor = '#a29bfe';
-      bgGradient = 'linear-gradient(135deg, #0f0c29, #302b63)';
-  }
-  
-  // Apply the theme colors
-  drawer.style.background = bgGradient;
-  
-  // Update hover effects for lyrics paragraphs
-  const style = document.createElement('style');
-  style.id = 'theme-specific-styles';
-  
-  // Remove any existing theme-specific styles
-  const existingStyle = document.getElementById('theme-specific-styles');
-  if (existingStyle) {
-    existingStyle.remove();
-  }
-  
-  style.textContent = `
-    .lyrics-content p:hover {
-      color: ${primaryColor};
-      border-left: 2px solid ${primaryColor};
-    }
-    .drawer-handle:hover {
-      background: rgba(${hexToRgb(primaryColor)}, 0.6);
-      box-shadow: 0 0 15px rgba(${hexToRgb(primaryColor)}, 0.4);
-    }
-    .close-button:hover {
-      background: rgba(${hexToRgb(primaryColor)}, 0.8);
-      box-shadow: 0 0 15px rgba(${hexToRgb(primaryColor)}, 0.4);
-    }
-    .font-size-btn:hover {
-      background: rgba(${hexToRgb(primaryColor)}, 0.3);
-    }
-    .song-artist {
-      color: ${secondaryColor};
-    }
-  `;
-  
-  document.head.appendChild(style);
-  
-  // Store preference in localStorage
-  try {
-    localStorage.setItem('beatscript_theme', themeName);
-  } catch (e) {
-    console.error('Could not save theme preference:', e);
-  }
-}
-
-// Helper function to convert hex to rgb
-function hexToRgb(hex) {
-  // Remove the # if present
-  hex = hex.replace('#', '');
-  
-  // Parse the hex values
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  
-  return `${r}, ${g}, ${b}`;
-}
-
-// Load saved preferences
-function loadPreferences() {
-  try {
-    // Load font size
-    const savedFontSize = localStorage.getItem('beatscript_font_size');
-    if (savedFontSize) {
-      currentFontSize = parseInt(savedFontSize);
-    }
-    
-    // Load theme
-    const savedTheme = localStorage.getItem('beatscript_theme');
-    if (savedTheme) {
-      // Find and click the theme option
-      const themeOption = document.querySelector(`.theme-option[data-theme="${savedTheme}"]`);
-      if (themeOption) {
-        themeOption.click();
-      }
-    }
-  } catch (e) {
-    console.error('Could not load preferences:', e);
-  }
-}
-
-// Call loadPreferences after a short delay to ensure the drawer is fully created
-setTimeout(loadPreferences, 100);
+// Store the current URL for change detection
+let currentUrl = window.location.href;
 
 // Toggle drawer
 let isOpen = false;
@@ -362,9 +206,7 @@ async function fetchLyrics() {
     if (!isYouTubeVideoPage()) {
       content.innerHTML = `
         <div class="error">
-          <div class="error-icon">⚠️</div>
-          <div class="error-message">This extension only works on YouTube video pages.</div>
-          <div class="error-details">Navigate to a YouTube video to see lyrics.</div>
+          This extension only works on YouTube video pages.
         </div>`;
       return;
     }
@@ -372,9 +214,7 @@ async function fetchLyrics() {
     // Show loading state
     content.innerHTML = `
       <div class="loading">
-        <div class="loading-text">Finding lyrics</div>
-        <div class="loading-dots"><span>.</span><span>.</span><span>.</span></div>
-        <div class="loading-music-note">♪</div>
+        <div class="loading-text">Finding lyrics...</div>
       </div>`;
     
     // Get the current video ID to ensure we're fetching for the right video
@@ -400,9 +240,7 @@ async function fetchLyrics() {
     if (!title) {
       content.innerHTML = `
         <div class="error">
-          <div class="error-icon">⚠️</div>
-          <div class="error-message">Could not extract video title</div>
-          <div class="error-details">Try refreshing the page or selecting a different video.</div>
+          Could not extract video title
         </div>`;
       return;
     }
@@ -444,17 +282,13 @@ async function fetchLyrics() {
     } else {
       content.innerHTML = `
         <div class="error">
-          <div class="error-icon">🎵</div>
-          <div class="error-message">No lyrics found for "${title}"</div>
-          <div class="error-details">Try with a different song or check if this is a music video.</div>
+          No lyrics found for "${title}"
         </div>`;
     }
   } catch (error) {
     content.innerHTML = `
       <div class="error">
-        <div class="error-icon">❌</div>
-        <div class="error-message">Error fetching lyrics</div>
-        <div class="error-details">${error.message}</div>
+        Error fetching lyrics: ${error.message}
       </div>`;
     console.error('Error fetching lyrics:', error);
   }
@@ -576,7 +410,7 @@ function displayLyrics(result) {
     // Get release date if available
     const releaseDate = result.metadata && result.metadata.releaseDate ? result.metadata.releaseDate : '';
     
-    // Create HTML for the lyrics display with enhanced UI
+    // Create HTML for the lyrics display with simplified UI
     const lyricsHTML = `
       <div class="lyrics-container">
         <div class="song-info">
@@ -584,7 +418,7 @@ function displayLyrics(result) {
           <h3 class="song-artist">${artist}</h3>
           ${releaseDate ? `<div class="release-date">Released: ${releaseDate}</div>` : ''}
         </div>
-        <div class="lyrics-content" style="font-size: ${currentFontSize}px">
+        <div class="lyrics-content">
           ${formatLyrics(lyrics)}
         </div>
         <div class="footer">
@@ -595,29 +429,9 @@ function displayLyrics(result) {
     
     content.innerHTML = lyricsHTML;
     
-    // Add a subtle animation to the lyrics
-    setTimeout(() => {
-      const lyricsParagraphs = document.querySelectorAll('.lyrics-content p');
-      lyricsParagraphs.forEach((p, index) => {
-        p.style.opacity = '0';
-        p.style.transform = 'translateY(20px)';
-        p.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-        
-        setTimeout(() => {
-          p.style.opacity = '1';
-          p.style.transform = 'translateY(0)';
-        }, 100 + (index * 30)); // Faster animation
-      });
-    }, 300);
-    
   } catch (error) {
     console.error('Error displaying lyrics:', error);
-    content.innerHTML = `
-      <div class="error">
-        <div class="error-icon">❌</div>
-        <div class="error-message">Error displaying lyrics</div>
-        <div class="error-details">${error.message}</div>
-      </div>`;
+    content.innerHTML = `<div class="error">Error displaying lyrics: ${error.message}</div>`;
   }
 }
 
@@ -766,13 +580,13 @@ lyricsStyles.textContent = `
     right: -100%;
     width: 400px;
     height: 100vh;
-    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-    transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    background: linear-gradient(135deg, #111111, #222222, #333333);
+    transition: right 0.3s ease;
     z-index: 10000;
-    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.5);
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
     box-sizing: border-box;
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    border-radius: 12px 0 0 12px;
   }
 
   .right-drawer.open {
@@ -784,52 +598,46 @@ lyricsStyles.textContent = `
     left: 0;
     top: 50%;
     transform: translateY(-50%);
-    height: 120px;
-    width: 8px;
+    height: 100px;
+    width: 6px;
     cursor: ew-resize;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px 0 0 4px;
-    transition: all 0.3s ease;
+    border-radius: 3px 0 0 3px;
   }
 
   .drawer-handle:hover {
-    background: rgba(138, 43, 226, 0.6);
-    box-shadow: 0 0 15px rgba(138, 43, 226, 0.4);
-    width: 10px;
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .close-button {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 36px;
-    height: 36px;
+    top: 15px;
+    right: 15px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    background: rgba(138, 43, 226, 0.2);
+    background: rgba(255, 255, 255, 0.1);
     border: none;
     color: white;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    transition: all 0.3s ease;
-    z-index: 10001;
+    font-size: 20px;
   }
 
   .close-button:hover {
-    background: rgba(138, 43, 226, 0.8);
-    transform: rotate(90deg);
-    box-shadow: 0 0 15px rgba(138, 43, 226, 0.4);
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .drawer-content {
-    padding: 100px 30px 30px 30px;
+    padding: 50px 20px 20px 20px;
     color: white;
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
     height: 100%;
     overflow-y: auto;
     opacity: 0;
-    transition: opacity 0.4s ease;
+    transition: opacity 0.3s ease;
     box-sizing: border-box;
   }
 
@@ -842,159 +650,95 @@ lyricsStyles.textContent = `
     flex-direction: column;
     height: auto;
     min-height: calc(100% - 50px);
-    position: relative;
   }
-
+  
   .song-info {
-    margin-bottom: 30px;
-    border-bottom: 2px solid rgba(138, 43, 226, 0.3);
-    padding-bottom: 20px;
-    position: relative;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 15px;
   }
-
+  
   .song-title {
-    font-size: 26px;
-    margin: 0 0 12px 0;
+    font-size: 22px;
+    margin: 0 0 10px 0;
     font-weight: 700;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    color: #fff;
-    line-height: 1.3;
   }
-
+  
   .song-artist {
-    font-size: 18px;
-    margin: 0 0 8px 0;
+    font-size: 16px;
+    margin: 0 0 5px 0;
     font-weight: 400;
-    opacity: 0.9;
-    color: #a29bfe;
+    opacity: 0.8;
   }
-
+  
   .release-date {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
-    margin-top: 10px;
+    margin-top: 5px;
+    opacity: 0.7;
   }
-
+  
   .lyrics-content {
     flex: 1;
-    line-height: 1.8;
-    padding-right: 10px;
+    line-height: 1.5;
+    padding-right: 5px;
     overflow-y: visible;
-    font-size: 16px;
-    position: relative;
+    font-size: ${currentFontSize}px;
   }
-
+  
   .lyrics-content p {
-    margin: 0 0 16px 0;
-    transition: all 0.3s ease;
-    position: relative;
-    padding-left: 12px;
-    border-left: 2px solid transparent;
+    margin: 0 0 8px 0;
   }
-
-  .lyrics-content p:hover {
-    transform: translateX(5px);
-    color: #8a2be2;
-    border-left: 2px solid #8a2be2;
-  }
-
+  
   .loading {
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100%;
+    font-size: 18px;
     padding-top: 40px;
-    position: relative;
-    text-align: center;
   }
-
+  
   .error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     color: #ff6b6b;
-    padding: 30px;
+    padding: 20px;
     text-align: center;
+    font-size: 16px;
     margin-top: 40px;
-    background: rgba(255, 107, 107, 0.1);
-    border-radius: 12px;
-    border-left: 4px solid #ff6b6b;
-  }
-
-  .theme-selector {
-    position: absolute;
-    top: 70px;
-    left: 30px;
-    display: flex;
-    gap: 3px;
-    z-index: 100;
-    opacity: 0.7;
-    transition: opacity 0.3s ease;
-  }
-
-  .theme-selector:hover {
-    opacity: 1;
-  }
-
-  .theme-option {
-    width: 15px;
-    height: 15px;
-    cursor: pointer;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    transition: all 0.2s ease;
-    position: relative;
-  }
-
-  .theme-option:hover, .theme-option.active {
-    transform: translateY(-2px);
-  }
-
-  .theme-option.active::after {
-    content: '';
-    position: absolute;
-    bottom: -3px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 5px;
-    height: 2px;
-    background: white;
   }
 
   .font-size-control {
     position: absolute;
-    top: 70px;
-    right: 30px;
+    top: 15px;
+    right: 77px;
     display: flex;
-    gap: 3px;
     align-items: center;
-    opacity: 0.7;
-    transition: opacity 0.3s ease;
-    z-index: 100;
+    gap: 5px;
   }
-
-  .font-size-control:hover {
-    opacity: 1;
-  }
-
+  
   .font-size-btn {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: none;
     color: white;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: bold;
   }
-
+  
   .font-size-btn:hover {
-    background: rgba(138, 43, 226, 0.3);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.2);
   }
 `;
 
-document.head.appendChild(lyricsStyles); 
+document.head.appendChild(lyricsStyles);
+
+// Add Plus Jakarta Sans font
+const fontLink = document.createElement('link');
+fontLink.rel = 'stylesheet';
+fontLink.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap';
+document.head.appendChild(fontLink); 
