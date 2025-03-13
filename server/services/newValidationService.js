@@ -34,8 +34,8 @@ const formPrompt = (originalQuery, metadata) => {
 
     Search Query: "${originalQuery}"
     Metadata:
-    ${titleLine}
-    ${artistLine}
+    ${metadata.title}
+    Lyrics URL: ${metadata.url}
 
     Analyze the search query and metadata to determine:
     1. "confidence": a score from 0-100 indicating how confident you are that the metadata matches the search query
@@ -52,6 +52,23 @@ const formPrompt = (originalQuery, metadata) => {
   return prompt2;
 }
 
+// Function to extract valid JSON from a string using regex
+function extractJsonFromString(str) {
+  try {
+    // Look for patterns that match JSON objects
+    const jsonRegex = /{[\s\S]*?}/;
+    const match = str.match(jsonRegex);
+    
+    if (match && match[0]) {
+      return match[0];
+    }
+    return str; // Return original string if no JSON object found
+  } catch (error) {
+    debug('Error extracting JSON with regex:', error.message);
+    return str; // Return original string on error
+  }
+}
+
 async function validateLyricsMetadataUsingOpenAI(originalQuery, metadata, source) {
   // Validate inputs
   // debug(originalQuery, metadata, source);
@@ -66,9 +83,7 @@ async function validateLyricsMetadataUsingOpenAI(originalQuery, metadata, source
   
   // Log metadata for debugging
   debug(`Validating metadata for ${source}:`, {
-    title: metadata.title,
-    artist: metadata.artist,
-    // album: metadata.album
+    metadata
   });
   // debug("validateLyricsMetadataUsingOpenAI", config.openai.apiKey);
   // If OpenAI API key is not available, use fallback validation
@@ -94,17 +109,19 @@ async function validateLyricsMetadataUsingOpenAI(originalQuery, metadata, source
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
-      max_tokens: 150
+      max_tokens: 50
     });
-    
     // If we got a valid response from OpenAI
     if (response && response.choices && response.choices.length > 0) {
       try {
         const resultText = response.choices[0].message.content.trim();
         // debug('OpenAI validation response:', resultText);
         
+        debug(resultText)
+        // Extract JSON from the response text using regex before parsing
+        const cleanedJsonText = extractJsonFromString(resultText);
         // Parse the result
-        const resultJson = JSON.parse(resultText);
+        const resultJson = JSON.parse(cleanedJsonText);
         const confidenceScore = resultJson.confidence || 0;
         const isValid = confidenceScore >= config.openai.validationThreshold;
         // debug("isValid",isValid);
