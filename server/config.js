@@ -13,7 +13,7 @@ module.exports = {
   openai: {
     // Get one from https://platform.openai.com/api-keys
     apiKey: process.env.OPENAI_API_KEY || 'myapikey',
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-4o',
     // Validation confidence threshold (0-100)
     validationThreshold: 60
   },
