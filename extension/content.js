@@ -255,14 +255,44 @@ async function fetchLyrics() {
     
     console.log('Fetching lyrics for:', { title, artist: channel, videoId: currentVideoId });
     
-    // Make API request to the backend
-    const response = await fetch('https://beatscript-v2-git-beatscript-backend-krishnas-projects-cc548bc4.vercel.app/api/lyrics/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ title, artist: channel }),
-    });
+    // Define API endpoints
+    const endpoints = [
+      'https://beatscript-v2-git-beatscript-backend-krishnas-projects-cc548bc4.vercel.app/api/lyrics/search',
+      'http://localhost:3000/api/lyrics/search'
+    ];
+    
+    // Try each endpoint until one works
+    let response = null;
+    let error = null;
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying endpoint: ${endpoint}`);
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ title, artist: channel }),
+        });
+        
+        if (response.ok) {
+          console.log(`Successfully connected to: ${endpoint}`);
+          break; // Exit the loop if we get a successful response
+        } else {
+          console.log(`Endpoint ${endpoint} returned status: ${response.status}`);
+        }
+      } catch (err) {
+        console.log(`Error with endpoint ${endpoint}:`, err.message);
+        error = err;
+        // Continue to the next endpoint
+      }
+    }
+    
+    // If no endpoint worked
+    if (!response || !response.ok) {
+      throw new Error(error ? error.message : `Failed to fetch lyrics from all endpoints`);
+    }
     
     // Verify again we're still on the same video (in case of navigation during fetch)
     const finalUrlParams = new URLSearchParams(window.location.search);
