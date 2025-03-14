@@ -9,15 +9,11 @@ handle.className = 'drawer-handle';
 const buttonContainer = document.createElement('div');
 buttonContainer.className = 'button-container';
 
-// Create settings button
+// Create all buttons
 const settingsBtn = document.createElement('button');
 settingsBtn.className = 'btn';
 settingsBtn.innerHTML = '⚙️';
 settingsBtn.title = 'Display Settings';
-
-// Create font size controls
-const fontSizeControl = document.createElement('div');
-fontSizeControl.className = 'font-size-control';
 
 const decreaseFontBtn = document.createElement('button');
 decreaseFontBtn.className = 'btn';
@@ -29,18 +25,15 @@ increaseFontBtn.className = 'btn';
 increaseFontBtn.innerHTML = 'A+';
 increaseFontBtn.title = 'Increase font size';
 
-fontSizeControl.appendChild(decreaseFontBtn);
-fontSizeControl.appendChild(increaseFontBtn);
-
-// Create close button
 const closeButton = document.createElement('button');
 closeButton.className = 'btn';
 closeButton.innerHTML = '×';
 closeButton.title = 'Close';
 
-// Add all buttons to container
+// Add buttons to container in order
 buttonContainer.appendChild(settingsBtn);
-buttonContainer.appendChild(fontSizeControl);
+buttonContainer.appendChild(decreaseFontBtn);
+buttonContainer.appendChild(increaseFontBtn);
 buttonContainer.appendChild(closeButton);
 
 // Create color picker

@@ -163,14 +163,18 @@
 .button-container {
   position: absolute;
   top: 15px;
-  right: 15px;
+  left: 20px;
   display: flex;
   align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px;
+  border-radius: 25px;
+  gap: 6px;
 }
 
 .btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.15);
   border: none;
@@ -179,35 +183,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 16px;
   transition: all 0.2s ease;
-  margin-left: 8px;
 }
 
 .btn:hover {
   background: rgba(255, 255, 255, 0.25);
-  transform: scale(1.05);
-}
-
-.btn:active {
-  transform: scale(0.95);
-}
-
-.font-size-control {
-  display: flex;
-  align-items: center;
 }
 
 .color-picker-container {
   position: absolute;
-  top: 55px;
-  right: 15px;
+  top: 65px;
+  left: 20px;
   background: rgba(0, 0, 0, 0.9);
-  padding: 15px;
+  padding: 12px;
   border-radius: 12px;
   display: none;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   z-index: 10001;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -220,27 +213,21 @@
 .color-input-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .color-input-group label {
   color: white;
   font-size: 14px;
-  font-weight: 500;
   min-width: 45px;
 }
 
 .color-input {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   padding: 2px;
   border: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   cursor: pointer;
   background: none;
-  transition: border-color 0.2s;
-}
-
-.color-input:hover {
-  border-color: rgba(255, 255, 255, 0.4);
 } 
