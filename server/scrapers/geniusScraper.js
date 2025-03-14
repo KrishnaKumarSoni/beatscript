@@ -141,73 +141,12 @@ async function scrapeLyricsFromGenius(url) {
 async function fetchLyricsAlternative(url) {
   console.log('Using alternative method to fetch lyrics from:', url);
   
-  // Extract the song ID from the URL
-  const urlParts = url.split('/');
-  const songId = urlParts[urlParts.length - 1].split('-').pop();
-  
-  if (!songId || isNaN(parseInt(songId))) {
-    console.error('Could not extract song ID from URL');
-    throw new Error('Could not extract song ID from URL');
-  }
-  
   try {
-    // Use Genius's own API to get the lyrics
-    const apiUrl = `https://api.genius.com/songs/${songId}`;
-    const response = await axios.get(apiUrl, {
-      headers: {
-        'Authorization': `Bearer ${process.env.GENIUS_ACCESS_TOKEN || 'YOUR_GENIUS_TOKEN'}`
-      }
-    });
-    
-    if (response.data && response.data.response && response.data.response.song) {
-      const song = response.data.response.song;
-      
-      // If the song has an embed_content field with lyrics
-      if (song.embed_content && song.embed_content.includes('data-lyrics-container')) {
-        const $ = cheerio.load(song.embed_content);
-        let lyrics = '';
-        
-        $('[data-lyrics-container="true"]').each((i, el) => {
-          const html = $(el).html();
-          if (html) {
-            const text = html
-              .replace(/<br\s*\/?>/gi, '\n')
-              .replace(/<[^>]*>/g, '')
-              .trim();
-            
-            lyrics += text + '\n\n';
-          }
-        });
-        
-        if (lyrics) {
-          return lyrics.trim();
-        }
-      }
-      
-      // If we couldn't get lyrics from embed_content, try the description
-      if (song.description && song.description.dom && song.description.dom.children) {
-        // Extract lyrics from the description if possible
-        // This is a fallback and may not always work
-        const descriptionText = JSON.stringify(song.description.dom);
-        const cleanedText = descriptionText
-          .replace(/\\n/g, '\n')
-          .replace(/\\"/g, '"')
-          .replace(/\\"lyrics\\"/i, '')
-          .replace(/[{}\[\]"]/g, '')
-          .replace(/children:|tag:|attributes:/g, '')
-          .trim();
-        
-        if (cleanedText.length > 100) { // Arbitrary length to ensure we have meaningful content
-          return cleanedText;
-        }
-      }
-    }
-    
-    // If we couldn't get lyrics from the API, try a different approach
-    // Use a public HTML to text service as a last resort
-    console.log('Trying public HTML service as last resort');
+    // Skip the Genius API approach and go directly to the proxy method
+    // since the song ID extraction is problematic
+    console.log('Trying public HTML service');
     const htmlToTextUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const htmlResponse = await axios.get(htmlToTextUrl, { timeout: 10000 });
+    const htmlResponse = await axios.get(htmlToTextUrl, { timeout: 15000 });
     
     if (htmlResponse.data) {
       const $ = cheerio.load(htmlResponse.data);
@@ -238,16 +177,87 @@ async function fetchLyricsAlternative(url) {
             }
           });
           
-          if (lyrics) break;
+          if (lyrics) {
+            console.log('Found lyrics using selector:', selector);
+            break;
+          }
         }
       }
       
       if (lyrics) {
+        // Clean up the lyrics
+        lyrics = lyrics
+          .replace(/\[\w+\]/g, '') // Remove [Verse], [Chorus], etc.
+          .replace(/\s{2,}/g, '\n') // Replace multiple spaces with newlines
+          .trim();
+          
+        console.log('Successfully extracted lyrics via proxy service');
         return lyrics.trim();
       }
     }
     
-    throw new Error('Could not extract lyrics using alternative methods');
+    // Try another proxy service as a fallback
+    console.log('First proxy failed, trying alternative proxy');
+    const corsAnywhereUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const corsResponse = await axios.get(corsAnywhereUrl, { 
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://www.google.com/'
+      }
+    });
+    
+    if (corsResponse.data) {
+      const $ = cheerio.load(corsResponse.data);
+      let lyrics = '';
+      
+      // Try all our selectors again
+      const selectors = [
+        '[data-lyrics-container="true"]',
+        '.lyrics',
+        '.song_body-lyrics',
+        '.lyrics__content',
+        '#lyrics-root',
+        '[class*="Lyrics__Container"]'
+      ];
+      
+      for (const selector of selectors) {
+        const elements = $(selector);
+        if (elements.length) {
+          elements.each((i, el) => {
+            const html = $(el).html();
+            if (html) {
+              const text = html
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<[^>]*>/g, '')
+                .trim();
+              
+              lyrics += text + '\n\n';
+            }
+          });
+          
+          if (lyrics) {
+            console.log('Found lyrics using selector with alternative proxy:', selector);
+            break;
+          }
+        }
+      }
+      
+      if (lyrics) {
+        // Clean up the lyrics
+        lyrics = lyrics
+          .replace(/\[\w+\]/g, '') // Remove [Verse], [Chorus], etc.
+          .replace(/\s{2,}/g, '\n') // Replace multiple spaces with newlines
+          .trim();
+          
+        console.log('Successfully extracted lyrics via alternative proxy service');
+        return lyrics.trim();
+      }
+    }
+    
+    throw new Error('Could not extract lyrics using proxy methods');
   } catch (error) {
     console.error('Alternative lyrics fetch failed:', error.message);
     throw error;
