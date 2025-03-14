@@ -12,7 +12,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
+    "https-proxy-agent": "^7.0.6",
     "openai": "^4.28.0",
+    "socks-proxy-agent": "^8.0.5",
     "string-similarity-js": "^2.1.4"
   },
   "devDependencies": {
@@ -21,4 +23,4 @@
   "engines": {
     "node": ">=18.0.0"
   }
-} 
+}
