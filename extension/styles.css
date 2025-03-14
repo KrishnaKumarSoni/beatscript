@@ -163,15 +163,15 @@
 .font-size-control {
   position: absolute;
   top: 15px;
-  right: 107px;
+  right: 55px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
 }
 
 .font-size-btn {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   border: none;
@@ -191,9 +191,9 @@
 .settings-btn {
   position: absolute;
   top: 15px;
-  right: 77px;
-  width: 24px;
-  height: 24px;
+  right: 95px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   border: none;
@@ -202,7 +202,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .settings-btn:hover {
@@ -211,15 +211,16 @@
 
 .color-picker-container {
   position: absolute;
-  top: 50px;
-  right: 77px;
+  top: 55px;
+  right: 95px;
   background: rgba(0, 0, 0, 0.8);
-  padding: 10px;
+  padding: 12px;
   border-radius: 8px;
   display: none;
   flex-direction: column;
   gap: 10px;
   z-index: 10001;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .color-picker-container.show {
