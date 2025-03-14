@@ -5,25 +5,48 @@ drawer.className = 'right-drawer';
 const handle = document.createElement('div');
 handle.className = 'drawer-handle';
 
-const closeButton = document.createElement('button');
-closeButton.className = 'close-button';
-closeButton.innerHTML = '×';
-
-// Create font size control
-const fontSizeControl = document.createElement('div');
-fontSizeControl.className = 'font-size-control';
+// Create button container
+const buttonContainer = document.createElement('div');
+buttonContainer.className = 'button-container';
 
 // Create settings button
 const settingsBtn = document.createElement('button');
-settingsBtn.className = 'settings-btn';
+settingsBtn.className = 'btn';
 settingsBtn.innerHTML = '⚙️';
 settingsBtn.title = 'Display Settings';
 
-// Create color picker container
+// Create font size controls
+const fontSizeControl = document.createElement('div');
+fontSizeControl.className = 'font-size-control';
+
+const decreaseFontBtn = document.createElement('button');
+decreaseFontBtn.className = 'btn';
+decreaseFontBtn.innerHTML = 'A-';
+decreaseFontBtn.title = 'Decrease font size';
+
+const increaseFontBtn = document.createElement('button');
+increaseFontBtn.className = 'btn';
+increaseFontBtn.innerHTML = 'A+';
+increaseFontBtn.title = 'Increase font size';
+
+fontSizeControl.appendChild(decreaseFontBtn);
+fontSizeControl.appendChild(increaseFontBtn);
+
+// Create close button
+const closeButton = document.createElement('button');
+closeButton.className = 'btn';
+closeButton.innerHTML = '×';
+closeButton.title = 'Close';
+
+// Add all buttons to container
+buttonContainer.appendChild(settingsBtn);
+buttonContainer.appendChild(fontSizeControl);
+buttonContainer.appendChild(closeButton);
+
+// Create color picker
 const colorPickerContainer = document.createElement('div');
 colorPickerContainer.className = 'color-picker-container';
 
-// Create color inputs
 const startColorGroup = document.createElement('div');
 startColorGroup.className = 'color-input-group';
 const startColorLabel = document.createElement('label');
@@ -49,47 +72,15 @@ endColorGroup.appendChild(endColorInput);
 colorPickerContainer.appendChild(startColorGroup);
 colorPickerContainer.appendChild(endColorGroup);
 
-// Add color picker functionality
-settingsBtn.addEventListener('click', () => {
-  colorPickerContainer.classList.toggle('show');
-});
-
-function updateGradient() {
-  drawer.style.background = `linear-gradient(135deg, ${startColorInput.value}, ${endColorInput.value})`;
-}
-
-startColorInput.addEventListener('input', updateGradient);
-endColorInput.addEventListener('input', updateGradient);
-
-// Close color picker when clicking outside
-document.addEventListener('click', (e) => {
-  if (!colorPickerContainer.contains(e.target) && e.target !== settingsBtn) {
-    colorPickerContainer.classList.remove('show');
-  }
-});
-
-const decreaseFontBtn = document.createElement('button');
-decreaseFontBtn.className = 'font-size-btn';
-decreaseFontBtn.innerHTML = 'A-';
-decreaseFontBtn.title = 'Decrease font size';
-
-const increaseFontBtn = document.createElement('button');
-increaseFontBtn.className = 'font-size-btn';
-increaseFontBtn.innerHTML = 'A+';
-increaseFontBtn.title = 'Increase font size';
-
-fontSizeControl.appendChild(decreaseFontBtn);
-fontSizeControl.appendChild(increaseFontBtn);
+// Add components to drawer
+drawer.appendChild(handle);
+drawer.appendChild(buttonContainer);
+drawer.appendChild(colorPickerContainer);
 
 const content = document.createElement('div');
 content.className = 'drawer-content';
-
-drawer.appendChild(handle);
-drawer.appendChild(closeButton);
-drawer.appendChild(settingsBtn);
-drawer.appendChild(colorPickerContainer);
-drawer.appendChild(fontSizeControl);
 drawer.appendChild(content);
+
 document.body.appendChild(drawer);
 
 // Font size control functionality
@@ -663,27 +654,6 @@ lyricsStyles.textContent = `
   }
 
   .drawer-handle:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .close-button {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-  }
-
-  .close-button:hover {
     background: rgba(255, 255, 255, 0.2);
   }
 
