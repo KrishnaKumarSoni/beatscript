@@ -163,7 +163,7 @@
 .font-size-control {
   position: absolute;
   top: 15px;
-  right: 55px;
+  right: 135px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -191,7 +191,7 @@
 .settings-btn {
   position: absolute;
   top: 15px;
-  right: 95px;
+  right: 55px;
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -212,7 +212,7 @@
 .color-picker-container {
   position: absolute;
   top: 55px;
-  right: 95px;
+  right: 55px;
   background: rgba(0, 0, 0, 0.8);
   padding: 12px;
   border-radius: 8px;
