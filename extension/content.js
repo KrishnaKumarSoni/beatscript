@@ -256,7 +256,7 @@ async function fetchLyrics() {
     console.log('Fetching lyrics for:', { title, artist: channel, videoId: currentVideoId });
     
     // Make API request to the backend
-    const response = await fetch('http://localhost:3000/api/lyrics/search', {
+    const response = await fetch('https://beatscript-v2-git-beatscript-backend-krishnas-projects-cc548bc4.vercel.app/api/lyrics/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -580,7 +580,7 @@ lyricsStyles.textContent = `
     right: -100%;
     width: 400px;
     height: 100vh;
-    background: linear-gradient(135deg, #4A1500, #8B4513, #CD853F);
+    background: linear-gradient(135deg, #872900, #b54503, #f26107);
     transition: right 0.3s ease;
     z-index: 10000;
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);

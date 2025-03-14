@@ -33,9 +33,10 @@ const formPrompt = (originalQuery, metadata) => {
     You are a music metadata validation system. Your task is to determine if the provided metadata matches the search query, ensure that the script (Roman , Devnagri etc) of the search should be same as the metadata.
 
     Search Query: "${originalQuery}"
-    Metadata:
-    ${metadata.title}
+    Metadata: [
+    Title: ${metadata.title}
     Lyrics URL: ${metadata.url}
+    ]
 
     Analyze the search query and metadata to determine:
     1. "confidence": a score from 0-100 indicating how confident you are that the metadata matches the search query
@@ -45,7 +46,7 @@ const formPrompt = (originalQuery, metadata) => {
       "confidence": 85
     }
     
-    Ensure language of the search query and metadata are same. Else return 0 confidence.
+    Ensure language of the search query and metadata are same.
   `;
   
   
@@ -81,10 +82,10 @@ async function validateLyricsMetadataUsingOpenAI(originalQuery, metadata, source
     };
   }
   
-  // Log metadata for debugging
-  debug(`Validating metadata for ${source}:`, {
-    metadata
-  });
+  // // Log metadata for debugging
+  // debug(`Validating metadata for ${source}:`, {
+  //   metadata
+  // });
   // debug("validateLyricsMetadataUsingOpenAI", config.openai.apiKey);
   // If OpenAI API key is not available, use fallback validation
   if (!config.openai.apiKey || config.openai.apiKey.startsWith('sk-') === false) {
@@ -101,7 +102,7 @@ async function validateLyricsMetadataUsingOpenAI(originalQuery, metadata, source
       apiKey: config.openai.apiKey
     });
     // debug("openai",openai);
-    
+    debug("prompt",prompt);
     const response = await openai.chat.completions.create({
       model: config.openai.model,
       messages: [
@@ -203,7 +204,7 @@ const validateLyricsMetadata =  async (result,searchString, source) => {
     // console.log("stringSim",stringSim.toFixed(2));
     // return result;
     console.log("gptValidation",gptValidation);
-    console.log("result url",result.url);
+    console.log("result for url:",result.url);
     if(gptValidation.isValid){  
         return result;
     }

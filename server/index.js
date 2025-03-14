@@ -8,9 +8,15 @@ const PORT = config.server.port;
 
 // CORS configuration
 const corsOptions = {
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
+  origin: [
+    'http://localhost:3000',
+    'https://beatscript-v2-h9rb0uwms-krishnas-projects-cc548bc4.vercel.app',
+    'https://beatscript-v2-e47qsibkv-krishnas-projects-cc548bc4.vercel.app',
+    'https://beatscript-*.vercel.app',
+    'chrome-extension://*'
+  ],
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
 };
 
 // Middleware
@@ -22,7 +28,7 @@ app.use('/api/lyrics', lyricRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', message: 'Beatscript Lyrics API is running' });
+  res.send('Beatscript Lyrics API is running');
 });
 
 app.listen(PORT, () => {

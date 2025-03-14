@@ -4,7 +4,10 @@
   "version": "1.0",
   "description": "Get lyrics for YouTube music videos",
   "permissions": ["activeTab", "scripting"],
-  "host_permissions": ["http://localhost:3000/*"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://beatscript-v2-git-beatscript-backend-krishnas-projects-cc548bc4.vercel.app/*"
+  ],
   "action": {
     "default_title": "Show Lyrics"
   },
