@@ -768,4 +768,25 @@ document.head.appendChild(lyricsStyles);
 const fontLink = document.createElement('link');
 fontLink.rel = 'stylesheet';
 fontLink.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap';
-document.head.appendChild(fontLink); 
+document.head.appendChild(fontLink);
+
+// Add settings functionality
+settingsBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  colorPickerContainer.classList.toggle('show');
+});
+
+// Color picker functionality
+function updateGradient() {
+  drawer.style.background = `linear-gradient(135deg, ${startColorInput.value}, ${endColorInput.value})`;
+}
+
+startColorInput.addEventListener('input', updateGradient);
+endColorInput.addEventListener('input', updateGradient);
+
+// Close color picker when clicking outside
+document.addEventListener('click', (e) => {
+  if (!colorPickerContainer.contains(e.target) && e.target !== settingsBtn) {
+    colorPickerContainer.classList.remove('show');
+  }
+}); 
