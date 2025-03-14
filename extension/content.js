@@ -13,6 +13,61 @@ closeButton.innerHTML = '×';
 const fontSizeControl = document.createElement('div');
 fontSizeControl.className = 'font-size-control';
 
+// Create settings button
+const settingsBtn = document.createElement('button');
+settingsBtn.className = 'settings-btn';
+settingsBtn.innerHTML = '⚙️';
+settingsBtn.title = 'Display Settings';
+
+// Create color picker container
+const colorPickerContainer = document.createElement('div');
+colorPickerContainer.className = 'color-picker-container';
+
+// Create color inputs
+const startColorGroup = document.createElement('div');
+startColorGroup.className = 'color-input-group';
+const startColorLabel = document.createElement('label');
+startColorLabel.textContent = 'Start:';
+const startColorInput = document.createElement('input');
+startColorInput.type = 'color';
+startColorInput.className = 'color-input';
+startColorInput.value = '#872900';
+startColorGroup.appendChild(startColorLabel);
+startColorGroup.appendChild(startColorInput);
+
+const endColorGroup = document.createElement('div');
+endColorGroup.className = 'color-input-group';
+const endColorLabel = document.createElement('label');
+endColorLabel.textContent = 'End:';
+const endColorInput = document.createElement('input');
+endColorInput.type = 'color';
+endColorInput.className = 'color-input';
+endColorInput.value = '#f26107';
+endColorGroup.appendChild(endColorLabel);
+endColorGroup.appendChild(endColorInput);
+
+colorPickerContainer.appendChild(startColorGroup);
+colorPickerContainer.appendChild(endColorGroup);
+
+// Add color picker functionality
+settingsBtn.addEventListener('click', () => {
+  colorPickerContainer.classList.toggle('show');
+});
+
+function updateGradient() {
+  drawer.style.background = `linear-gradient(135deg, ${startColorInput.value}, ${endColorInput.value})`;
+}
+
+startColorInput.addEventListener('input', updateGradient);
+endColorInput.addEventListener('input', updateGradient);
+
+// Close color picker when clicking outside
+document.addEventListener('click', (e) => {
+  if (!colorPickerContainer.contains(e.target) && e.target !== settingsBtn) {
+    colorPickerContainer.classList.remove('show');
+  }
+});
+
 const decreaseFontBtn = document.createElement('button');
 decreaseFontBtn.className = 'font-size-btn';
 decreaseFontBtn.innerHTML = 'A-';
@@ -31,6 +86,8 @@ content.className = 'drawer-content';
 
 drawer.appendChild(handle);
 drawer.appendChild(closeButton);
+drawer.appendChild(settingsBtn);
+drawer.appendChild(colorPickerContainer);
 drawer.appendChild(fontSizeControl);
 drawer.appendChild(content);
 document.body.appendChild(drawer);
@@ -255,44 +312,14 @@ async function fetchLyrics() {
     
     console.log('Fetching lyrics for:', { title, artist: channel, videoId: currentVideoId });
     
-    // Define API endpoints
-    const endpoints = [
-      'https://beatscript-v2-git-beatscript-backend-krishnas-projects-cc548bc4.vercel.app/api/lyrics/search',
-      'http://localhost:3000/api/lyrics/search'
-    ];
-    
-    // Try each endpoint until one works
-    let response = null;
-    let error = null;
-    
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Trying endpoint: ${endpoint}`);
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ title, artist: channel }),
-        });
-        
-        if (response.ok) {
-          console.log(`Successfully connected to: ${endpoint}`);
-          break; // Exit the loop if we get a successful response
-        } else {
-          console.log(`Endpoint ${endpoint} returned status: ${response.status}`);
-        }
-      } catch (err) {
-        console.log(`Error with endpoint ${endpoint}:`, err.message);
-        error = err;
-        // Continue to the next endpoint
-      }
-    }
-    
-    // If no endpoint worked
-    if (!response || !response.ok) {
-      throw new Error(error ? error.message : `Failed to fetch lyrics from all endpoints`);
-    }
+    // Make API request to the backend
+    const response = await fetch('http://localhost:3000/api/lyrics/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title, artist: channel }),
+    });
     
     // Verify again we're still on the same video (in case of navigation during fetch)
     const finalUrlParams = new URLSearchParams(window.location.search);
@@ -610,7 +637,7 @@ lyricsStyles.textContent = `
     right: -100%;
     width: 400px;
     height: 100vh;
-    background: linear-gradient(135deg, #872900, #b54503, #f26107);
+    background: linear-gradient(135deg, #111111, #222222, #333333);
     transition: right 0.3s ease;
     z-index: 10000;
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
