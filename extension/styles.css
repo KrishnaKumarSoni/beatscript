@@ -4,7 +4,7 @@
   right: -100%;
   width: 400px;
   height: 100vh;
-  background: linear-gradient(135deg, #111111, #222222, #333333);
+  background: linear-gradient(135deg, #4A1500, #8B4513, #CD853F);
   transition: right 0.3s ease;
   z-index: 10000;
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
