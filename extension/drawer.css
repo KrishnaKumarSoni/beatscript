@@ -1,0 +1,291 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+
+/* ── Reset (scoped to drawer only) ── */
+#bs-drawer,
+#bs-drawer * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Drawer shell ── */
+#bs-drawer {
+  --bs-accent:      rgb(160, 160, 255);
+  --bs-accent-dim:  rgba(160, 160, 255, 0.10);
+  --bs-accent-mid:  rgba(160, 160, 255, 0.28);
+  --bs-accent-text: rgb(210, 210, 255);
+
+  --bs-bg:          #0c0c0d;
+  --bs-surface:     #111113;
+  --bs-border:      rgba(255, 255, 255, 0.055);
+  --bs-muted:       #94A3B8;
+  --bs-faint:       rgba(255, 255, 255, 0.18);
+
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 444px;
+  height: 100vh;
+  z-index: 2147483647;
+
+  background: var(--bs-bg);
+  border-radius: 16px 0 0 16px;
+  box-shadow:
+    -1px 0 0 var(--bs-border),
+    -24px 0 80px rgba(0, 0, 0, 0.7),
+    -2px 0 40px rgba(0, 0, 0, 0.5);
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  font-family: 'DM Sans', sans-serif;
+  color: #e2e8f0;
+
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#bs-drawer.bs-open {
+  transform: translateX(0);
+}
+
+/* ── Aurora glow at top — updates with accent ── */
+#bs-drawer::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: -40px;
+  width: 280px;
+  height: 220px;
+  background: radial-gradient(ellipse at center, var(--bs-accent-dim) 0%, transparent 70%);
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(30px);
+  transition: background 0.6s ease;
+  z-index: 0;
+}
+
+/* ── All children above the glow ── */
+#bs-drawer > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ────────────────────────────────────────────
+   CLOSE BUTTON
+──────────────────────────────────────────── */
+#bs-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--bs-border);
+  border-radius: 50%;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.3);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  padding: 0;
+}
+
+#bs-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+#bs-close-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* ────────────────────────────────────────────
+   LOADING STATE
+──────────────────────────────────────────── */
+#bs-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.bs-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  border-top-color: var(--bs-accent);
+  border-radius: 50%;
+  animation: bs-spin 0.75s linear infinite;
+}
+
+@keyframes bs-spin {
+  to { transform: rotate(360deg); }
+}
+
+#bs-loading span {
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.2);
+  animation: bs-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes bs-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 1; }
+}
+
+/* ────────────────────────────────────────────
+   ERROR STATE
+──────────────────────────────────────────── */
+#bs-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 28px;
+  gap: 10px;
+  text-align: center;
+}
+
+#bs-error-text {
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: rgba(239, 68, 68, 0.85);
+}
+
+#bs-retry-btn {
+  margin-top: 6px;
+  padding: 8px 18px;
+  background: transparent;
+  color: var(--bs-muted);
+  border: 1px solid var(--bs-border);
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+#bs-retry-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ────────────────────────────────────────────
+   LYRICS VIEW
+──────────────────────────────────────────── */
+#bs-lyrics-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  animation: bs-fadein 0.4s ease;
+}
+
+@keyframes bs-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Song metadata block ── */
+#bs-meta {
+  padding: 28px 24px 20px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--bs-border);
+}
+
+#bs-song-title {
+  display: block;
+  font-family: 'Manrope', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--bs-accent-text);
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+  transition: color 0.5s ease;
+}
+
+#bs-song-artist {
+  display: block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 6px;
+  letter-spacing: 0.01em;
+}
+
+#bs-song-extra {
+  display: block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.15);
+  margin-top: 5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Lyrics scroll area ── */
+#bs-lyrics {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 32px;
+
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14.5px;
+  font-weight: 300;
+  font-style: normal;
+  line-height: 2;
+  color: rgba(255, 255, 255, 0.62);
+  white-space: pre-wrap;
+
+  /* Fade out at bottom to hint more content */
+  -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}
+
+/* Section headers like [Verse 1], [Chorus] */
+#bs-lyrics-view #bs-lyrics {
+  /* handled via JS if needed, or via CSS attr trick */
+}
+
+#bs-lyrics::-webkit-scrollbar        { width: 2px; }
+#bs-lyrics::-webkit-scrollbar-track  { background: transparent; }
+#bs-lyrics::-webkit-scrollbar-thumb  {
+  background: var(--bs-accent-mid);
+  border-radius: 2px;
+  transition: background 0.5s ease;
+}
+
+/* ────────────────────────────────────────────
+   UTILITY
+──────────────────────────────────────────── */
+.bs-hidden {
+  display: none !important;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  #bs-drawer        { transition: none; }
+  .bs-spinner       { animation: none; border-top-color: var(--bs-accent); }
+  #bs-loading span  { animation: none; opacity: 0.6; }
+  #bs-lyrics-view   { animation: none; }
+}
