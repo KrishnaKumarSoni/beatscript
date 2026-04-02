@@ -53,4 +53,31 @@ async function formatLyrics(requested, raw) {
   return JSON.parse(response.choices[0].message.content);
 }
 
-module.exports = { validateMatch, formatLyrics };
+// Parse a YouTube video title + channel name into { songTitle, artistName }
+async function parseYouTubeMetadata(videoTitle, channelName) {
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You are a music metadata expert. Given a YouTube video title and the YouTube channel name that uploaded it, ' +
+          'extract the song title and artist name. ' +
+          'The video title often contains both (e.g. "Artist - Song", "Song (ft. X) | Artist", "Song by Artist") — parse accordingly. ' +
+          'The channel name is usually the artist or their official channel, which is a strong signal for the artist name. ' +
+          'Strip anything that is not part of the actual song title: "(Official Video)", "(Lyrics)", "(Audio)", "(4K)", "ft.", featured artist annotations in brackets, etc. from the title field only — keep them in the artist field if relevant. ' +
+          'Reply with JSON: { "songTitle": string, "artistName": string }',
+      },
+      {
+        role: 'user',
+        content: `YouTube video title: "${videoTitle}"\nYouTube channel name (uploader): "${channelName}"`,
+      },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0,
+  });
+
+  return JSON.parse(response.choices[0].message.content);
+}
+
+module.exports = { validateMatch, formatLyrics, parseYouTubeMetadata };

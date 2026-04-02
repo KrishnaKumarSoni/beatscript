@@ -3,7 +3,7 @@ const express = require('express');
 const genius = require('./providers/genius');
 const lrclib = require('./providers/lrclib');
 const jiosaavn = require('./providers/jiosaavn');
-const { validateMatch, formatLyrics } = require('./llm');
+const { validateMatch, formatLyrics, parseYouTubeMetadata } = require('./llm');
 
 const app = express();
 app.use(express.json());
@@ -85,5 +85,29 @@ async function handleRequest(title, artist, res) {
   }
 }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Beatscript API running on port ${PORT}`));
+// POST /lyrics/youtube  { videoTitle, channelName }
+app.post('/lyrics/youtube', async (req, res) => {
+  const { videoTitle, channelName } = req.body;
+  if (!videoTitle || !channelName) {
+    return res.status(400).json({ error: 'videoTitle and channelName are required' });
+  }
+  try {
+    const parsed = await parseYouTubeMetadata(videoTitle, channelName);
+    const result = await fetchLyrics(parsed.songTitle, parsed.artistName);
+    if (!result) {
+      return res.status(404).json({ error: 'Lyrics not found', parsed });
+    }
+    res.json({ ...result, parsed });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Unexpected error', details: err.message });
+  }
+});
+
+// Export for Vercel serverless; also listen locally when run directly
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Beatscript API running on port ${PORT}`));
+}
+
+module.exports = app;
