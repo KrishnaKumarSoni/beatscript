@@ -62,11 +62,14 @@ async function parseYouTubeMetadata(videoTitle, channelName) {
         role: 'system',
         content:
           'You are a music metadata expert. Given a YouTube video title and the YouTube channel name that uploaded it, ' +
-          'extract the song title and artist name. ' +
+          'first decide if this video is a song or music — original tracks, covers, remixes, and live performances all count as music. ' +
+          'Non-music videos include: tutorials, podcasts, vlogs, interviews, compilations of unrelated clips, gaming videos, news, sports, etc. ' +
+          'If it is NOT a music video, reply with JSON: { "isMusic": false, "reason": "<short human-readable reason, e.g. \'This looks like a tutorial video\'>" } ' +
+          'If it IS music, extract the song title and artist name. ' +
           'The video title often contains both (e.g. "Artist - Song", "Song (ft. X) | Artist", "Song by Artist") — parse accordingly. ' +
           'The channel name is usually the artist or their official channel, which is a strong signal for the artist name. ' +
-          'Strip anything that is not part of the actual song title: "(Official Video)", "(Lyrics)", "(Audio)", "(4K)", "ft.", featured artist annotations in brackets, etc. from the title field only — keep them in the artist field if relevant. ' +
-          'Reply with JSON: { "songTitle": string, "artistName": string }',
+          'Strip anything that is not part of the actual song title: "(Official Video)", "(Lyrics)", "(Audio)", "(4K)", featured artist annotations in brackets, etc. from the title field only. ' +
+          'If it IS music, reply with JSON: { "isMusic": true, "songTitle": string, "artistName": string }',
       },
       {
         role: 'user',

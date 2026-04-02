@@ -100,6 +100,11 @@ app.post('/lyrics/youtube', async (req, res) => {
   }
   try {
     const parsed = await parseYouTubeMetadata(videoTitle, channelName);
+
+    if (!parsed.isMusic) {
+      return res.status(422).json({ notMusic: true, reason: parsed.reason || 'This video does not appear to be a song.' });
+    }
+
     const result = await fetchLyrics(parsed.songTitle, parsed.artistName);
     if (!result) {
       return res.status(404).json({ error: 'Lyrics not found', parsed });
